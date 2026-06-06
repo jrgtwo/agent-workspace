@@ -27,4 +27,16 @@ describe('PermissionBroker', () => {
     await expect(promise).resolves.toBe(false)
     expect(broker.getState().pending).toHaveLength(0)
   })
+
+  it('tags a request with the given surfaceId', () => {
+    const broker = new PermissionBroker(() => 'id-s')
+    void broker.request(readScope, {}, 'ai-chat')
+    expect(broker.getState().pending[0].surfaceId).toBe('ai-chat')
+  })
+
+  it('leaves surfaceId undefined when not provided (backward compatible)', () => {
+    const broker = new PermissionBroker(() => 'id-u')
+    void broker.request(readScope, {})
+    expect(broker.getState().pending[0].surfaceId).toBeUndefined()
+  })
 })

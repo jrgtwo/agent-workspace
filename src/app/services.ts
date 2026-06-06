@@ -48,7 +48,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const model = env.VITE_LLAMA_MODEL ?? 'local'
   const client = opts?.client ?? new LlamaClient(baseUrl, model)
 
-  const engine = new AgentEngine(client, registry, broker)
+  const engine = new AgentEngine(client, registry, broker, 'ai-chat')
 
   // The document library owns the 'doc-editor' scope (index/active/doc:<id>) and hydrates
   // the active document into docStore. Memory persists via the declarative helper.

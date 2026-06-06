@@ -17,4 +17,19 @@ describe('permissionPromptModule', () => {
     await userEvent.click(screen.getByRole('button', { name: /allow/i }))
     await expect(promise).resolves.toBe(true)
   })
+
+  it('shows pending requests from multiple surfaces, each with a surface label', async () => {
+    let n = 0
+    const broker = new PermissionBroker(() => `p-${++n}`)
+    const mod = createPermissionPromptModule(broker)
+    render(mod.render())
+
+    void broker.request(scope, {}, 'ai-chat')
+    void broker.request({ ...scope, describe: () => 'Search the web?' }, {}, 'search')
+
+    expect(await screen.findByText('Read Untitled.md?')).toBeInTheDocument()
+    expect(await screen.findByText('Search the web?')).toBeInTheDocument()
+    expect(screen.getByText('[ai-chat]')).toBeInTheDocument()
+    expect(screen.getByText('[search]')).toBeInTheDocument()
+  })
 })

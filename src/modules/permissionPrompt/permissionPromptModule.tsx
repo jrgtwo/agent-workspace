@@ -13,6 +13,7 @@ function PermissionPanel({ broker }: { broker: PermissionBroker }) {
         <div key={req.id} style={{ background: '#fff7e6', border: '1px solid #ffe2a8', borderRadius: 6, padding: 8, fontSize: 12 }}>
           <div style={{ marginBottom: 6 }}>
             <strong>{req.scope.locality}</strong> · <span>{req.detail}</span>
+            {req.surfaceId && <span style={{ marginLeft: 6, fontSize: 10, color: '#888' }}>[{req.surfaceId}]</span>}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => broker.allow(req.id)}>Allow</button>

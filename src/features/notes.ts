@@ -18,7 +18,7 @@ export function createNotesFeature(deps: {
   memory: MemoryStore
 }): FeatureManifest {
   const explorer = createDocumentExplorerModule(deps.library)
-  const chat = createAiChatModule(deps.engine)
+  const chat = createAiChatModule(deps.engine, deps.broker)
   const perms = createPermissionPromptModule(deps.broker)
   const memory = createMemoryViewerModule(deps.memory)
   const editor = createDocEditorModule(deps.docStore)

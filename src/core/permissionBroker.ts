@@ -10,12 +10,13 @@ export class PermissionBroker extends Emitter<BrokerState> {
 
   getState = (): BrokerState => this.state
 
-  request(scope: PermissionScope, args: unknown): Promise<boolean> {
+  request(scope: PermissionScope, args: unknown, surfaceId?: string): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       const req: PermissionRequest = {
         id: this.genId(),
         scope,
         detail: scope.describe(args),
+        surfaceId,
         resolve,
       }
       this.state = { pending: [...this.state.pending, req] }

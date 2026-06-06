@@ -38,14 +38,15 @@ describe('Notes slice — canonical scenario', () => {
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'tighten my intro' } })
     fireEvent.click(screen.getByRole('button', { name: /send/i }))
 
-    // 1) read permission prompt → allow. Wait for THIS request's text before clicking,
-    //    so we don't click a stale Allow button from a prior (already-resolved) request.
-    await screen.findByText('Read Untitled.md?')
-    fireEvent.click(screen.getByRole('button', { name: /allow/i }))
+    // 1) read permission prompt → allow. The same request may appear in both the inline
+    //    AI Chat panel and the standalone Permissions panel; use findAllByText and click
+    //    the first Allow button found (resolving the request removes it from both panels).
+    await screen.findAllByText('Read Untitled.md?')
+    fireEvent.click(screen.getAllByRole('button', { name: /allow/i })[0])
 
     // 2) write permission prompt → allow (wait for the distinct edit request to appear)
-    await screen.findByText(/Edit Untitled\.md/)
-    fireEvent.click(screen.getByRole('button', { name: /allow/i }))
+    await screen.findAllByText(/Edit Untitled\.md/)
+    fireEvent.click(screen.getAllByRole('button', { name: /allow/i })[0])
 
     // Let the agent loop fully settle (remember step + final answer) before asserting the DOM.
     await waitFor(() => expect(services.engine.getState().busy).toBe(false))

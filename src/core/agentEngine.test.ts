@@ -92,4 +92,21 @@ describe('AgentEngine', () => {
     expect(msgs.filter((m) => m.role === 'system')).toEqual([{ role: 'system', content: 'NEW SYSTEM' }])
     expect(msgs.map((m) => m.role)).toEqual(['system', 'user', 'assistant'])
   })
+
+  it('stamps its surfaceId onto every permission request it makes', async () => {
+    const registry = new Registry(); registry.register([readTool])
+    const captured: (string | undefined)[] = []
+    const broker = {
+      request: vi.fn(async (_s: any, _a: any, surfaceId?: string) => { captured.push(surfaceId); return true }),
+    } as any
+    const client = fakeClient([
+      { content: '', toolCalls: [{ id: 'c1', name: 'read_document', arguments: '{}' }] },
+      { content: 'done', toolCalls: [] },
+    ])
+    const engine = new AgentEngine(client, registry, broker, 'ai-chat')
+
+    await engine.run('go')
+
+    expect(captured).toEqual(['ai-chat'])
+  })
 })

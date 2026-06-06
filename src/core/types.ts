@@ -15,6 +15,7 @@ export interface PermissionRequest {
   id: string
   scope: PermissionScope
   detail: string            // resolved describe(args)
+  surfaceId?: string        // id of the chat surface that originated this request (display routing)
   resolve: (allowed: boolean) => void
 }
 

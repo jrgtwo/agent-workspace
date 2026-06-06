@@ -12,12 +12,14 @@ export class AgentEngine extends Emitter<AgentState> {
   private client: Pick<LlamaClient, 'chat'>
   private registry: Registry
   private broker: PermissionBroker
+  readonly surfaceId: string
 
-  constructor(client: Pick<LlamaClient, 'chat'>, registry: Registry, broker: PermissionBroker) {
+  constructor(client: Pick<LlamaClient, 'chat'>, registry: Registry, broker: PermissionBroker, surfaceId = 'agent') {
     super()
     this.client = client
     this.registry = registry
     this.broker = broker
+    this.surfaceId = surfaceId
   }
 
   getState = (): AgentState => this.state
@@ -88,7 +90,7 @@ export class AgentEngine extends Emitter<AgentState> {
     try { args = call.arguments ? JSON.parse(call.arguments) : {} } catch { args = {} }
 
     if (tool.permission) {
-      const allowed = await this.broker.request(tool.permission, args)
+      const allowed = await this.broker.request(tool.permission, args, this.surfaceId)
       if (!allowed) {
         return JSON.stringify({ denied: true, message: 'User denied permission for this action.' })
       }

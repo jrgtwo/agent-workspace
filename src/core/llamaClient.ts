@@ -28,8 +28,11 @@ export class LlamaClient {
     onToken: (t: string) => void,
   ): Promise<ChatResult> {
     let res: Response
+    // Detach from `this`: the native browser `fetch` throws "Illegal invocation" when
+    // called as a method (this !== window). A local binding calls it with this=undefined.
+    const doFetch = this.fetchImpl
     try {
-      res = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+      res = await doFetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

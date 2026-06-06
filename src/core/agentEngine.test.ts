@@ -69,4 +69,14 @@ describe('AgentEngine', () => {
     const toolMsg = engine.getState().messages.find((m) => m.role === 'tool')
     expect(toolMsg?.content).toMatch(/denied/i)
   })
+
+  it('resets busy to false even when the model call throws (so the UI never wedges)', async () => {
+    const registry = new Registry()
+    const broker = new PermissionBroker(() => 'p')
+    const client = { chat: vi.fn(async () => { throw new Error('boom') }) } as any
+    const engine = new AgentEngine(client, registry, broker)
+
+    await expect(engine.run('hi')).rejects.toThrow('boom')
+    expect(engine.getState().busy).toBe(false)
+  })
 })

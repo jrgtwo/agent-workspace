@@ -41,35 +41,38 @@ export class AgentEngine extends Emitter<AgentState> {
     const messages: ChatMessage[] = [...this.state.messages, { role: 'user', content: userText }]
     this.set({ messages, busy: true, streaming: '' })
 
-    let final = ''
-    for (let iter = 0; iter < MAX_ITERS; iter++) {
-      let streamed = ''
-      const result = await this.client.chat(this.state.messages, this.registry.all(), (tok) => {
-        streamed += tok
-        this.set({ streaming: streamed })
-      })
-
-      const assistantMsg: ChatMessage = {
-        role: 'assistant',
-        content: result.content,
-        toolCalls: result.toolCalls.length ? result.toolCalls : undefined,
-      }
-      this.set({ messages: [...this.state.messages, assistantMsg], streaming: '' })
-
-      if (!result.toolCalls.length) { final = result.content; break }
-
-      for (const call of result.toolCalls) {
-        const toolResult = await this.dispatch(call)
-        this.set({
-          messages: [...this.state.messages, {
-            role: 'tool', toolCallId: call.id, content: toolResult,
-          }],
+    try {
+      for (let iter = 0; iter < MAX_ITERS; iter++) {
+        let streamed = ''
+        const result = await this.client.chat(this.state.messages, this.registry.all(), (tok) => {
+          streamed += tok
+          this.set({ streaming: streamed })
         })
-      }
-    }
 
-    this.set({ busy: false })
-    return final
+        const assistantMsg: ChatMessage = {
+          role: 'assistant',
+          content: result.content,
+          toolCalls: result.toolCalls.length ? result.toolCalls : undefined,
+        }
+        this.set({ messages: [...this.state.messages, assistantMsg], streaming: '' })
+
+        if (!result.toolCalls.length) return result.content
+
+        for (const call of result.toolCalls) {
+          const toolResult = await this.dispatch(call)
+          this.set({
+            messages: [...this.state.messages, {
+              role: 'tool', toolCallId: call.id, content: toolResult,
+            }],
+          })
+        }
+      }
+      return ''
+    } finally {
+      // Always clear busy/streaming, even if the model call throws — otherwise one
+      // failure wedges the UI (Send stays disabled, no further requests fire).
+      this.set({ busy: false, streaming: '' })
+    }
   }
 
   private async dispatch(call: ToolCall): Promise<string> {

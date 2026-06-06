@@ -13,6 +13,25 @@ function sseStream(chunks: string[]): ReadableStream<Uint8Array> {
 }
 
 describe('LlamaClient', () => {
+  it('uses the global fetch when no fetchImpl is injected, without an illegal-invocation error', async () => {
+    // Regression: calling `this.fetchImpl(...)` invoked native fetch as a method
+    // (this !== window) and threw "Illegal invocation" before any request went out.
+    const spy = vi.fn().mockResolvedValue(
+      new Response(sseStream([JSON.stringify({ choices: [{ delta: { content: 'hi' } }] })]), { status: 200 }),
+    )
+    const original = globalThis.fetch
+    globalThis.fetch = spy as unknown as typeof fetch
+    try {
+      const client = new LlamaClient('http://localhost:5174/v1', 'local') // no fetchImpl -> default
+      const res = await client.chat([{ role: 'user', content: 'hi' }], [], () => {})
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(spy.mock.calls[0][0]).toBe('http://localhost:5174/v1/chat/completions')
+      expect(res.content).toBe('hi')
+    } finally {
+      globalThis.fetch = original
+    }
+  })
+
   it('assembles streamed content and fires onToken', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(sseStream([

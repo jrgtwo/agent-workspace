@@ -12,4 +12,13 @@ describe('DocEditorStore', () => {
     expect(s.getState().text).toBe('Fresh text')
     expect(s.applyEdit('missing', 'x')).toBe(false)
   })
+
+  it('hydrate() replaces name+text and notifies subscribers', () => {
+    const s = new DocEditorStore('Untitled.md', 'old')
+    let notified = 0
+    s.subscribe(() => { notified++ })
+    s.hydrate({ name: 'Notes.md', text: 'restored' })
+    expect(s.getState()).toEqual({ name: 'Notes.md', text: 'restored' })
+    expect(notified).toBe(1)
+  })
 })

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { createServices } from './services'
+import { MemoryBackend } from '../core/storage/memoryBackend'
 import { WorkspaceShell } from '../shell/WorkspaceShell'
 import type { ChatResult } from '../core/llamaClient'
 
@@ -29,7 +30,7 @@ describe('Notes slice — canonical scenario', () => {
       { content: '', toolCalls: [{ id: 'c3', name: 'remember', arguments: JSON.stringify({ fact: 'User prefers crisp, direct intros.' }) }] },
       { content: 'Done — I tightened your intro.', toolCalls: [] },
     ])
-    const services = createServices({ client })
+    const services = await createServices({ client, backend: new MemoryBackend() })
     services.docStore.setText('draft intro')
 
     render(<WorkspaceShell features={services.features} />)

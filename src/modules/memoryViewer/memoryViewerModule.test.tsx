@@ -7,10 +7,10 @@ let c = 0
 const genId = () => `m-${++c}`
 
 describe('memoryViewerModule', () => {
-  beforeEach(() => { localStorage.clear(); c = 0 })
+  beforeEach(() => { c = 0 })
 
   it('exposes a remember tool that writes to the store (LOCAL, no permission gate)', async () => {
-    const store = new MemoryStore('mem', genId, () => 1)
+    const store = new MemoryStore(genId, () => 1)
     const mod = createMemoryViewerModule(store)
     const remember = mod.tools.find((t) => t.name === 'remember')!
     expect(remember.permission).toBeUndefined()
@@ -19,7 +19,7 @@ describe('memoryViewerModule', () => {
   })
 
   it('renders saved memories', () => {
-    const store = new MemoryStore('mem', genId, () => 1)
+    const store = new MemoryStore(genId, () => 1)
     store.add('User prefers concise intros')
     const mod = createMemoryViewerModule(store)
     render(mod.render())

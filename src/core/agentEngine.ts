@@ -32,6 +32,11 @@ export class AgentEngine extends Emitter<AgentState> {
     })
   }
 
+  /** Restore a previously persisted conversation. Call seedSystem() afterward. */
+  hydrateMessages(messages: ChatMessage[]): void {
+    this.set({ messages })
+  }
+
   private set(patch: Partial<AgentState>): void {
     this.state = { ...this.state, ...patch }
     this.notify()

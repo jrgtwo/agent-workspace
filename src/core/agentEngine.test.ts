@@ -79,4 +79,17 @@ describe('AgentEngine', () => {
     await expect(engine.run('hi')).rejects.toThrow('boom')
     expect(engine.getState().busy).toBe(false)
   })
+
+  it('hydrateMessages restores prior messages; seedSystem keeps exactly one system message', () => {
+    const engine = new AgentEngine({ chat: vi.fn() } as any, new Registry(), new PermissionBroker(() => 'p'))
+    engine.hydrateMessages([
+      { role: 'system', content: 'OLD SYSTEM' },
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'hi' },
+    ])
+    engine.seedSystem('NEW SYSTEM')
+    const msgs = engine.getState().messages
+    expect(msgs.filter((m) => m.role === 'system')).toEqual([{ role: 'system', content: 'NEW SYSTEM' }])
+    expect(msgs.map((m) => m.role)).toEqual(['system', 'user', 'assistant'])
+  })
 })

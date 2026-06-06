@@ -5,7 +5,10 @@ import { Registry } from '../core/registry'
 import { AgentEngine } from '../core/agentEngine'
 import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createNotesFeature } from '../features/notes'
-import type { FeatureManifest } from '../core/types'
+import { createStorage } from '../core/storage/storage'
+import { persistState, debounce } from '../core/storage/persistState'
+import type { StorageBackend } from '../core/storage/types'
+import type { ChatMessage, FeatureManifest } from '../core/types'
 
 let seq = 0
 const genId = () => `id-${++seq}`
@@ -24,13 +27,17 @@ export interface AppServices {
   docStore: DocEditorStore
 }
 
-/**
- * Construct the workspace's core services and wire module tools into the registry.
- * Pass `opts.client` (a stub with a `chat` method) to bypass the real llama-server in tests.
- */
-export function createServices(opts?: { client?: Pick<LlamaClient, 'chat'> }): AppServices {
+export interface CreateServicesOpts {
+  client?: Pick<LlamaClient, 'chat'>
+  backend?: StorageBackend
+}
+
+// Async: awaits hydration of document/chat/memory before returning, so the UI can render
+// the restored workspace without an empty flash or a type-during-load race.
+export async function createServices(opts?: CreateServicesOpts): Promise<AppServices> {
+  const storage = createStorage(opts?.backend)
   const broker = new PermissionBroker(genId)
-  const memory = new MemoryStore('workspace-memory', genId)
+  const memory = new MemoryStore(genId)
   const docStore = new DocEditorStore('Untitled.md', '')
   const registry = new Registry()
 
@@ -40,10 +47,20 @@ export function createServices(opts?: { client?: Pick<LlamaClient, 'chat'> }): A
   const client = opts?.client ?? new LlamaClient(baseUrl, model)
 
   const engine = new AgentEngine(client, registry, broker)
+
+  // Hydrate + auto-persist the document and memory via the declarative helper.
+  await persistState(docStore, storage.scope('doc-editor'), 'current')
+  await persistState(memory, storage.scope('memory'), 'entries')
+
+  // Chat: custom hookup because the system prompt is re-seeded each launch.
+  const chatScope = storage.scope('chat')
+  const savedMessages = await chatScope.get<ChatMessage[]>('messages')
+  engine.hydrateMessages(savedMessages ?? [])
   engine.seedSystem(SYSTEM_PROMPT)
+  const saveChat = debounce(() => { void chatScope.set('messages', engine.getState().messages) }, 400)
+  engine.subscribe(saveChat)
 
   const notes = createNotesFeature({ docStore, engine, broker, memory })
-  // Collect tools from every module in every feature so the agent can call them.
   for (const feature of [notes]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }

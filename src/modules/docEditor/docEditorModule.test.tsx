@@ -24,19 +24,18 @@ describe('docEditorModule', () => {
     expect(pending[0].payload).toEqual({ find: 'INTRO', replace: 'BETTER INTRO' })
   })
 
-  it('renders the document text in a textarea when there are no pending changes', () => {
+  it('renders the document text in the markdown editor when there are no pending changes', async () => {
     const store = new DocEditorStore('Untitled.md', 'hello')
     const proposals = new ProposalStore(() => 'c-1')
     render(createDocEditorModule(store, proposals).render())
-    expect(screen.getByRole('textbox')).toHaveValue('hello')
+    expect((await screen.findByLabelText('document')).textContent).toContain('hello')
   })
 
-  it('shows a diff review when a change is pending; Accept applies it and returns to the textarea', async () => {
+  it('shows a diff review when a change is pending; Accept applies it and returns to the editor', async () => {
     const store = new DocEditorStore('Untitled.md', 'INTRO here')
     let n = 0
     const proposals = new ProposalStore(() => `c-${++n}`)
     render(createDocEditorModule(store, proposals).render())
-    expect(screen.getByRole('textbox')).toHaveValue('INTRO here')
 
     proposals.propose({ moduleId: 'doc-editor', summary: 's', payload: { find: 'INTRO', replace: 'BETTER' } })
 
@@ -44,7 +43,7 @@ describe('docEditorModule', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /accept this change/i }))
     expect(store.getState().text).toBe('BETTER here')
-    expect(await screen.findByRole('textbox')).toHaveValue('BETTER here')
+    expect((await screen.findByLabelText('document')).textContent).toContain('BETTER here')
   })
 
   it('Reject discards the pending change without mutating the document', async () => {
@@ -57,6 +56,6 @@ describe('docEditorModule', () => {
     expect(await screen.findByText('BETTER')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /reject this change/i }))
     expect(store.getState().text).toBe('INTRO here')
-    expect(await screen.findByRole('textbox')).toHaveValue('INTRO here')
+    expect((await screen.findByLabelText('document')).textContent).toContain('INTRO here')
   })
 })

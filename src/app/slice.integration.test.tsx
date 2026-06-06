@@ -47,12 +47,12 @@ describe('Notes slice — canonical scenario', () => {
     expect(await screen.findByText('Done — I tightened your intro.')).toBeInTheDocument()
     expect(screen.getByText('User prefers crisp, direct intros.')).toBeInTheDocument()
 
-    // 3) The edit is pending as a diff, NOT yet applied: the textarea is replaced by review mode.
+    // 3) The edit is pending as a diff, NOT yet applied: the editor is replaced by review mode.
     expect(screen.queryByLabelText('document')).not.toBeInTheDocument()
     expect(await screen.findByText('A crisp, direct intro.')).toBeInTheDocument()
 
-    // 4) Accepting the diff is the write authorization → text applied, textarea returns.
+    // 4) Accepting the diff is the write authorization → text applied, editor returns.
     fireEvent.click(screen.getAllByRole('button', { name: /accept this change/i })[0])
-    expect(await screen.findByLabelText('document')).toHaveValue('A crisp, direct intro.')
+    expect((await screen.findByLabelText('document')).textContent).toContain('A crisp, direct intro.')
   })
 })

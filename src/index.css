@@ -1,22 +1,42 @@
+/* ============================================================
+   Design tokens — "Modern app": calm, focused, product-grade.
+   Neutral zinc surfaces, crisp borders, a single teal accent,
+   subtle depth. Full light + dark. Font is bundled locally
+   (Hanken Grotesk, imported in main.tsx) — no font CDN (privacy).
+   ============================================================ */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* surfaces */
+  --bg: #fbfbfc;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --border: #e8e9ed;
+  --border-strong: #d8dae0;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* text */
+  --text: #424751;
+  --text-strong: #14171c;
+  --text-muted: #8b909b;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  /* accent — a calm teal (deliberately not purple/blue-cliché) */
+  --accent: #0d9488;
+  --accent-strong: #0f766e;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(13, 148, 136, 0.12);
+
+  /* depth */
+  --shadow-sm: 0 1px 2px rgba(16, 22, 35, 0.06);
+  --shadow-md: 0 8px 24px -8px rgba(16, 22, 35, 0.16), 0 2px 6px -2px rgba(16, 22, 35, 0.08);
+  --radius: 10px;
+  --radius-sm: 7px;
+
+  /* type */
+  --sans: 'Hanken Grotesk Variable', system-ui, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0.005em;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -24,41 +44,28 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --bg: #0e1014;
+    --surface: #15181e;
+    --surface-2: #1c2027;
+    --border: #262b33;
+    --border-strong: #343a44;
+    --text: #b7bdc8;
+    --text-strong: #f1f3f6;
+    --text-muted: #6c727d;
+    --accent: #2dd4bf;
+    --accent-strong: #5eead4;
+    --accent-fg: #06201d;
+    --accent-soft: rgba(45, 212, 191, 0.14);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.55), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+* {
   box-sizing: border-box;
 }
 
@@ -66,46 +73,14 @@ body {
   margin: 0;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* The workspace fills the viewport (tiled multi-panel app). */
+#root {
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+::selection {
+  background: var(--accent-soft);
 }

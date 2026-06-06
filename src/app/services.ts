@@ -67,7 +67,16 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const saveChat = debounce(() => { void chatScope.set('messages', engine.getState().messages) }, 400)
   engine.subscribe(saveChat)
 
-  const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals })
+  // Image blobs are stored locally in 'doc-images' scope (privacy: never uploaded).
+  // IndexedDB stores Blob via structured clone; MemoryBackend stores it in-memory for tests.
+  const imageScope = storage.scope('doc-images')
+  const saveImage = async (file: File): Promise<string> => {
+    const id = genId()
+    await imageScope.set(id, file)
+    return id
+  }
+
+  const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals, saveImage })
   for (const feature of [notes]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }

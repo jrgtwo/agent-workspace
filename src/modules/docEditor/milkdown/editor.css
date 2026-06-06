@@ -1,0 +1,137 @@
+/* ============================================================
+   Milkdown editor surface — "Modern app" writing experience.
+   Uses the global design tokens (src/index.css). All local; no CDN.
+   ============================================================ */
+
+.milkdown {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+/* The editable content: a comfortable reading measure, centered. */
+.milkdown .ProseMirror {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 32px 45vh;
+  outline: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.72;
+  caret-color: var(--accent);
+  -webkit-font-smoothing: antialiased;
+}
+
+.milkdown .ProseMirror :first-child { margin-top: 0; }
+
+/* Headings — a clear, tight scale. */
+.milkdown .ProseMirror h1,
+.milkdown .ProseMirror h2,
+.milkdown .ProseMirror h3,
+.milkdown .ProseMirror h4 {
+  color: var(--text-strong);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.018em;
+  margin: 1.4em 0 0.5em;
+}
+.milkdown .ProseMirror h1 { font-size: 1.9em; }
+.milkdown .ProseMirror h2 { font-size: 1.5em; }
+.milkdown .ProseMirror h3 { font-size: 1.22em; }
+.milkdown .ProseMirror h4 { font-size: 1.05em; }
+
+.milkdown .ProseMirror p { margin: 0.62em 0; }
+
+.milkdown .ProseMirror strong { font-weight: 700; color: var(--text-strong); }
+.milkdown .ProseMirror em { font-style: italic; }
+.milkdown .ProseMirror del { color: var(--text-muted); }
+
+.milkdown .ProseMirror a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-soft);
+  transition: border-color 0.12s ease;
+}
+.milkdown .ProseMirror a:hover { border-bottom-color: var(--accent); }
+
+/* Inline code */
+.milkdown .ProseMirror :not(pre) > code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.08em 0.36em;
+  color: var(--text-strong);
+}
+
+/* Fenced code blocks (plain for now; syntax highlighting is a follow-up) */
+.milkdown .ProseMirror pre {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  line-height: 1.55;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 0.9em 0;
+}
+.milkdown .ProseMirror pre code { background: none; border: none; padding: 0; font-size: 1em; }
+
+/* Blockquote */
+.milkdown .ProseMirror blockquote {
+  margin: 0.9em 0;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+}
+
+/* Lists */
+.milkdown .ProseMirror ul,
+.milkdown .ProseMirror ol { padding-left: 1.45em; margin: 0.55em 0; }
+.milkdown .ProseMirror li { margin: 0.22em 0; }
+.milkdown .ProseMirror li::marker { color: var(--text-muted); }
+
+/* Task list checkboxes */
+.milkdown .ProseMirror li.task-list-item,
+.milkdown .ProseMirror li[data-item-type='task'] { list-style: none; }
+.milkdown .ProseMirror input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  cursor: pointer;
+  vertical-align: -2px;
+}
+
+/* Horizontal rule */
+.milkdown .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border-strong);
+  margin: 1.6em 0;
+}
+
+/* Tables */
+.milkdown .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.9em 0;
+  font-size: 0.93em;
+}
+.milkdown .ProseMirror th,
+.milkdown .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 7px 11px;
+  text-align: left;
+}
+.milkdown .ProseMirror th {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.milkdown .ProseMirror img { max-width: 100%; border-radius: var(--radius-sm); }
+
+.milkdown .ProseMirror ::selection { background: var(--accent-soft); }

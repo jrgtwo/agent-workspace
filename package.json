@@ -12,9 +12,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fontsource-variable/hanken-grotesk": "^5.2.8",
+    "@milkdown/kit": "^7.21.2",
+    "@milkdown/react": "^7.21.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-resizable-panels": "^4.11.2"
+    "react-resizable-panels": "^4.11.2",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -24,6 +28,7 @@
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",

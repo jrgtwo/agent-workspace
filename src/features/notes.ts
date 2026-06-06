@@ -18,12 +18,13 @@ export function createNotesFeature(deps: {
   broker: PermissionBroker
   memory: MemoryStore
   proposals: ProposalStore
+  saveImage?: (file: File) => Promise<string>
 }): FeatureManifest {
   const explorer = createDocumentExplorerModule(deps.library)
   const chat = createAiChatModule(deps.engine, deps.broker)
   const perms = createPermissionPromptModule(deps.broker)
   const memory = createMemoryViewerModule(deps.memory)
-  const editor = createDocEditorModule(deps.docStore, deps.proposals)
+  const editor = createDocEditorModule(deps.docStore, deps.proposals, deps.saveImage)
   return {
     id: 'notes', name: 'Notes', icon: '📝',
     modules: [explorer, chat, perms, memory, editor],

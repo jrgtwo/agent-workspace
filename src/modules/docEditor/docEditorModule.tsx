@@ -3,21 +3,15 @@ import type { WorkspaceModule } from '../../core/types'
 import type { DocEditorStore } from './docEditorStore'
 import type { ProposalStore } from '../../core/proposalStore'
 import { ReviewPanel, type DocEditPayload } from './docEditorReview'
+import { MilkdownEditor } from './milkdownEditor'
 
-function DocEditorPanel({ store, proposals }: { store: DocEditorStore; proposals: ProposalStore }) {
+function DocEditorPanel({ store, proposals, saveImage }: { store: DocEditorStore; proposals: ProposalStore; saveImage?: (file: File) => Promise<string> }) {
   const { text } = useStore(store)
   const { pending } = useStore(proposals)
   const mine = pending.filter((c) => c.moduleId === 'doc-editor')
 
   if (mine.length === 0) {
-    return (
-      <textarea
-        aria-label="document"
-        style={{ width: '100%', height: '100%', border: 'none', resize: 'none', padding: 12, font: 'inherit' }}
-        value={text}
-        onChange={(e) => store.setText(e.target.value)}
-      />
-    )
+    return <MilkdownEditor store={store} saveImage={saveImage} />
   }
 
   return (
@@ -32,14 +26,14 @@ function DocEditorPanel({ store, proposals }: { store: DocEditorStore; proposals
   )
 }
 
-export function createDocEditorModule(store: DocEditorStore, proposals: ProposalStore): WorkspaceModule {
+export function createDocEditorModule(store: DocEditorStore, proposals: ProposalStore, saveImage?: (file: File) => Promise<string>): WorkspaceModule {
   const resource = `document:${store.getState().name}`
   return {
     id: 'doc-editor',
     title: `Document — ${store.getState().name}`,
     locality: 'LOCAL',
     layoutHints: { defaultSize: 60, collapsible: false, minSize: 30 },
-    render: () => <DocEditorPanel store={store} proposals={proposals} />,
+    render: () => <DocEditorPanel store={store} proposals={proposals} saveImage={saveImage} />,
     tools: [
       {
         name: 'read_document',

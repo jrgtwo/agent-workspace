@@ -5,6 +5,7 @@ import { Registry } from '../core/registry'
 import { AgentEngine } from '../core/agentEngine'
 import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createNotesFeature } from '../features/notes'
+import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { createStorage } from '../core/storage/storage'
 import { persistState, debounce } from '../core/storage/persistState'
 import type { StorageBackend } from '../core/storage/types'
@@ -25,6 +26,7 @@ export interface AppServices {
   memory: MemoryStore
   engine: AgentEngine
   docStore: DocEditorStore
+  library: DocumentLibraryStore
 }
 
 export interface CreateServicesOpts {
@@ -48,8 +50,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
 
   const engine = new AgentEngine(client, registry, broker)
 
-  // Hydrate + auto-persist the document and memory via the declarative helper.
-  await persistState(docStore, storage.scope('doc-editor'), 'current')
+  // The document library owns the 'doc-editor' scope (index/active/doc:<id>) and hydrates
+  // the active document into docStore. Memory persists via the declarative helper.
+  const library = new DocumentLibraryStore(docStore, storage.scope('doc-editor'), genId)
+  await library.init()
   await persistState(memory, storage.scope('memory'), 'entries')
 
   // Chat: custom hookup because the system prompt is re-seeded each launch.
@@ -60,10 +64,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const saveChat = debounce(() => { void chatScope.set('messages', engine.getState().messages) }, 400)
   engine.subscribe(saveChat)
 
-  const notes = createNotesFeature({ docStore, engine, broker, memory })
+  const notes = createNotesFeature({ docStore, library, engine, broker, memory })
   for (const feature of [notes]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
-  return { features: [notes], broker, memory, engine, docStore }
+  return { features: [notes], broker, memory, engine, docStore, library }
 }

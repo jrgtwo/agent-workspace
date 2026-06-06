@@ -31,7 +31,8 @@ describe('persistence', () => {
     services.memory.add('learned something')
 
     await vi.waitFor(async () => {
-      expect(await backend.get('doc-editor', 'current')).toEqual({ name: 'Untitled.md', text: 'a fresh draft' })
+      const activeId = services.library.getState().activeId
+      expect((await backend.get('doc-editor', `doc:${activeId}`)) as { text: string }).toMatchObject({ text: 'a fresh draft' })
       const mem = (await backend.get('memory', 'entries')) as { entries: { text: string }[] }
       expect(mem.entries.map((e) => e.text)).toContain('learned something')
     })

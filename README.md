@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# Notes — a private AI workspace that never leaves your machine
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An AI writing assistant that lives *inside* your notes, not in a chat box you visit.
+It can read your document, edit it, and remember what matters to you — and it asks
+permission every single time. Because everything runs locally, you can finally share
+personal context with an AI without it leaving your computer.
 
-Currently, two official plugins are available:
+## Why it's different
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Private by design.** The model runs on your own machine. No cloud, no telemetry,
+  no third party who could store, sell, or leak your words.
+- **An ambient collaborator, not a chatbot.** The agent sees what you're working on and
+  helps in place — reading and rewriting your document alongside you.
+- **You're always in control.** Every read and every edit is gated by an explicit
+  permission prompt. Nothing happens to your document without your yes.
+- **It learns you.** The assistant remembers durable facts and preferences you share,
+  so it gets more useful the more you use it — and you can see and manage everything it
+  knows in the Memory panel.
 
-## React Compiler
+## What you get
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+A single workspace with four panels working together:
 
-## Expanding the ESLint configuration
+- **Document** — a plain-text editor where your writing lives.
+- **Chat** — talk to the assistant; ask it to draft, revise, summarize, or look things up.
+- **Permissions** — approve or deny each action the assistant wants to take.
+- **Memory** — everything the assistant has chosen to remember, in plain view.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Get started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+You'll need [Node.js](https://nodejs.org) and a local model server
+([llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server`).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. **Start your local model.** Launch `llama-server` with your model of choice.
+2. **Install and run the app:**
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+3. Open the URL Vite prints (usually http://localhost:5173) and start writing.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+That's it — your assistant is ready, and nothing you type goes anywhere but your own machine.

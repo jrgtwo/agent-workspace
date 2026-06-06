@@ -22,6 +22,16 @@ export class AgentEngine extends Emitter<AgentState> {
 
   getState = (): AgentState => this.state
 
+  /** Seed (or replace) the system prompt as the first message. */
+  seedSystem(prompt: string): void {
+    this.set({
+      messages: [
+        { role: 'system', content: prompt },
+        ...this.state.messages.filter((m) => m.role !== 'system'),
+      ],
+    })
+  }
+
   private set(patch: Partial<AgentState>): void {
     this.state = { ...this.state, ...patch }
     this.notify()

@@ -8,9 +8,11 @@ export class DocEditorStore extends Emitter<DocState> {
   getState = (): DocState => this.state
   hydrate(state: DocState): void { this.state = state; this.notify() }
   setText(text: string): void { this.state = { ...this.state, text }; this.notify() }
-  applyEdit(find: string, replace: string): boolean {
-    if (!this.state.text.includes(find)) return false
-    this.setText(this.state.text.replace(find, replace))
+  applyChange(payload: { find: string; replace: string }): boolean {
+    if (!this.state.text.includes(payload.find)) return false
+    // Replacer function avoids String.replace's `$`-pattern substitution ($&, $`, $', $$),
+    // so a literal replacement like "costs $5" is inserted verbatim.
+    this.setText(this.state.text.replace(payload.find, () => payload.replace))
     return true
   }
 }

@@ -5,7 +5,7 @@ import { MemoryBackend } from '../core/storage/memoryBackend'
 import { WorkspaceShell } from '../shell/WorkspaceShell'
 import type { ChatResult } from '../core/llamaClient'
 
-// Scripted model: 1) read the doc, 2) edit it, 3) remember a preference, 4) final answer.
+// Scripted model: 1) read the doc, 2) propose an edit, 3) remember a preference, 4) final answer.
 function scriptedClient(scripts: ChatResult[]) {
   let i = 0
   return { chat: vi.fn(async (_m: any, _t: any, onToken: (s: string) => void): Promise<ChatResult> => {
@@ -15,18 +15,17 @@ function scriptedClient(scripts: ChatResult[]) {
   }) }
 }
 
-// NOTE: this test drives the UI with `fireEvent` rather than `userEvent`. The chat input
-// and permission buttons live inside react-resizable-panels containers, and userEvent's
-// pointer-focus path does not deliver events through them under jsdom (verified: the
-// controlled input stays empty). fireEvent dispatches the events directly and reliably.
+// NOTE: drive the UI with `fireEvent` (not `userEvent`): chat input and permission buttons live
+// inside react-resizable-panels containers, and userEvent's pointer-focus path does not deliver
+// events through them under jsdom. fireEvent dispatches directly and reliably.
 
 describe('Notes slice — canonical scenario', () => {
   beforeEach(() => localStorage.clear())
 
-  it('reads, edits (with permission), and remembers — all gated by the user', async () => {
+  it('reads (gated), proposes an edit, remembers, then the user accepts the diff to apply it', async () => {
     const client = scriptedClient([
       { content: '', toolCalls: [{ id: 'c1', name: 'read_document', arguments: '{}' }] },
-      { content: '', toolCalls: [{ id: 'c2', name: 'apply_edit', arguments: JSON.stringify({ find: 'draft intro', replace: 'A crisp, direct intro.' }) }] },
+      { content: '', toolCalls: [{ id: 'c2', name: 'propose_edit', arguments: JSON.stringify({ find: 'draft intro', replace: 'A crisp, direct intro.' }) }] },
       { content: '', toolCalls: [{ id: 'c3', name: 'remember', arguments: JSON.stringify({ fact: 'User prefers crisp, direct intros.' }) }] },
       { content: 'Done — I tightened your intro.', toolCalls: [] },
     ])
@@ -38,24 +37,22 @@ describe('Notes slice — canonical scenario', () => {
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'tighten my intro' } })
     fireEvent.click(screen.getByRole('button', { name: /send/i }))
 
-    // 1) read permission prompt → allow. The same request may appear in both the inline
-    //    AI Chat panel and the standalone Permissions panel; use findAllByText and click
-    //    the first Allow button found (resolving the request removes it from both panels).
+    // 1) read permission prompt → allow. The request appears in both the inline AI Chat panel
+    //    and the standalone Permissions panel; click the first Allow (resolving clears both).
     await screen.findAllByText('Read Untitled.md?')
     fireEvent.click(screen.getAllByRole('button', { name: /allow/i })[0])
 
-    // 2) write permission prompt → allow (wait for the distinct edit request to appear)
-    await screen.findAllByText(/Edit Untitled\.md/)
-    fireEvent.click(screen.getAllByRole('button', { name: /allow/i })[0])
-
-    // Let the agent loop fully settle (remember step + final answer) before asserting the DOM.
+    // 2) propose_edit is NOT gated — no "Edit Untitled.md?" prompt. The loop runs to completion.
     await waitFor(() => expect(services.engine.getState().busy).toBe(false))
-
-    // remember is not gated; final answer shows
     expect(await screen.findByText('Done — I tightened your intro.')).toBeInTheDocument()
-    // document was edited
-    expect(screen.getByLabelText('document')).toHaveValue('A crisp, direct intro.')
-    // memory recorded the learning
     expect(screen.getByText('User prefers crisp, direct intros.')).toBeInTheDocument()
+
+    // 3) The edit is pending as a diff, NOT yet applied: the textarea is replaced by review mode.
+    expect(screen.queryByLabelText('document')).not.toBeInTheDocument()
+    expect(await screen.findByText('A crisp, direct intro.')).toBeInTheDocument()
+
+    // 4) Accepting the diff is the write authorization → text applied, textarea returns.
+    fireEvent.click(screen.getAllByRole('button', { name: /accept this change/i })[0])
+    expect(await screen.findByLabelText('document')).toHaveValue('A crisp, direct intro.')
   })
 })

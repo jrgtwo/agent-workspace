@@ -1,27 +1,45 @@
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { DocEditorStore } from './docEditorStore'
+import type { ProposalStore } from '../../core/proposalStore'
+import { ReviewPanel, type DocEditPayload } from './docEditorReview'
 
-function DocEditorPanel({ store }: { store: DocEditorStore }) {
+function DocEditorPanel({ store, proposals }: { store: DocEditorStore; proposals: ProposalStore }) {
   const { text } = useStore(store)
+  const { pending } = useStore(proposals)
+  const mine = pending.filter((c) => c.moduleId === 'doc-editor')
+
+  if (mine.length === 0) {
+    return (
+      <textarea
+        aria-label="document"
+        style={{ width: '100%', height: '100%', border: 'none', resize: 'none', padding: 12, font: 'inherit' }}
+        value={text}
+        onChange={(e) => store.setText(e.target.value)}
+      />
+    )
+  }
+
   return (
-    <textarea
-      aria-label="document"
-      style={{ width: '100%', height: '100%', border: 'none', resize: 'none', padding: 12, font: 'inherit' }}
-      value={text}
-      onChange={(e) => store.setText(e.target.value)}
+    <ReviewPanel
+      text={text}
+      changes={mine}
+      onAccept={(c) => { store.applyChange(c.payload as DocEditPayload); proposals.remove(c.id) }}
+      onReject={(c) => proposals.remove(c.id)}
+      onAcceptAll={() => { for (const c of [...mine]) { store.applyChange(c.payload as DocEditPayload); proposals.remove(c.id) } }}
+      onRejectAll={() => { for (const c of [...mine]) proposals.remove(c.id) }}
     />
   )
 }
 
-export function createDocEditorModule(store: DocEditorStore): WorkspaceModule {
+export function createDocEditorModule(store: DocEditorStore, proposals: ProposalStore): WorkspaceModule {
   const resource = `document:${store.getState().name}`
   return {
     id: 'doc-editor',
     title: `Document — ${store.getState().name}`,
     locality: 'LOCAL',
     layoutHints: { defaultSize: 60, collapsible: false, minSize: 30 },
-    render: () => <DocEditorPanel store={store} />,
+    render: () => <DocEditorPanel store={store} proposals={proposals} />,
     tools: [
       {
         name: 'read_document',
@@ -31,15 +49,22 @@ export function createDocEditorModule(store: DocEditorStore): WorkspaceModule {
         handler: () => store.getState().text,
       },
       {
-        name: 'apply_edit',
-        description: 'Replace the first occurrence of `find` with `replace` in the document.',
+        name: 'propose_edit',
+        description:
+          'Propose replacing the first occurrence of `find` with `replace`. The change is shown to the user as a diff to accept or reject; it is NOT applied until they accept.',
         parameters: {
           type: 'object',
           properties: { find: { type: 'string' }, replace: { type: 'string' } },
           required: ['find', 'replace'],
         },
-        permission: { kind: 'write', resource, locality: 'LOCAL', describe: (a: any) => `Edit ${store.getState().name} (replace "${a?.find ?? ''}")?` },
-        handler: (a: { find: string; replace: string }) => ({ applied: store.applyEdit(a.find, a.replace) }),
+        handler: (a: { find: string; replace: string }) => {
+          proposals.propose({
+            moduleId: 'doc-editor',
+            summary: `Replace "${a.find}" with "${a.replace}"`,
+            payload: { find: a.find, replace: a.replace },
+          })
+          return { proposed: true, message: 'Proposed edit; awaiting your review.' }
+        },
       },
     ],
   }

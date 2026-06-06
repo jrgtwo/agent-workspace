@@ -9,6 +9,7 @@ import type { DocumentLibraryStore } from '../modules/docEditor/documentLibraryS
 import type { AgentEngine } from '../core/agentEngine'
 import type { PermissionBroker } from '../core/permissionBroker'
 import type { MemoryStore } from '../core/memoryStore'
+import type { ProposalStore } from '../core/proposalStore'
 
 export function createNotesFeature(deps: {
   docStore: DocEditorStore
@@ -16,12 +17,13 @@ export function createNotesFeature(deps: {
   engine: AgentEngine
   broker: PermissionBroker
   memory: MemoryStore
+  proposals: ProposalStore
 }): FeatureManifest {
   const explorer = createDocumentExplorerModule(deps.library)
   const chat = createAiChatModule(deps.engine, deps.broker)
   const perms = createPermissionPromptModule(deps.broker)
   const memory = createMemoryViewerModule(deps.memory)
-  const editor = createDocEditorModule(deps.docStore)
+  const editor = createDocEditorModule(deps.docStore, deps.proposals)
   return {
     id: 'notes', name: 'Notes', icon: '📝',
     modules: [explorer, chat, perms, memory, editor],

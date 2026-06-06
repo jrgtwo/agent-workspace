@@ -2,15 +2,21 @@ import { describe, it, expect } from 'vitest'
 import { DocEditorStore } from './docEditorStore'
 
 describe('DocEditorStore', () => {
-  it('sets and reads text, and replaces a substring via applyEdit', () => {
+  it('sets and reads text, and replaces a substring via applyChange', () => {
     const s = new DocEditorStore('Untitled.md', 'Hello world')
     expect(s.getState().text).toBe('Hello world')
     s.setText('New text')
     expect(s.getState().text).toBe('New text')
-    const ok = s.applyEdit('New', 'Fresh')
+    const ok = s.applyChange({ find: 'New', replace: 'Fresh' })
     expect(ok).toBe(true)
     expect(s.getState().text).toBe('Fresh text')
-    expect(s.applyEdit('missing', 'x')).toBe(false)
+    expect(s.applyChange({ find: 'missing', replace: 'x' })).toBe(false)
+  })
+
+  it('inserts a replacement containing $ patterns verbatim (no String.replace substitution)', () => {
+    const s = new DocEditorStore('Untitled.md', 'price TBD')
+    expect(s.applyChange({ find: 'TBD', replace: 'is $5 (was $&)' })).toBe(true)
+    expect(s.getState().text).toBe('price is $5 (was $&)')
   })
 
   it('hydrate() replaces name+text and notifies subscribers', () => {

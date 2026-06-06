@@ -1,5 +1,6 @@
 import { PermissionBroker } from '../core/permissionBroker'
 import { MemoryStore } from '../core/memoryStore'
+import { ProposalStore } from '../core/proposalStore'
 import { LlamaClient } from '../core/llamaClient'
 import { Registry } from '../core/registry'
 import { AgentEngine } from '../core/agentEngine'
@@ -27,6 +28,7 @@ export interface AppServices {
   engine: AgentEngine
   docStore: DocEditorStore
   library: DocumentLibraryStore
+  proposals: ProposalStore
 }
 
 export interface CreateServicesOpts {
@@ -40,6 +42,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const storage = createStorage(opts?.backend)
   const broker = new PermissionBroker(genId)
   const memory = new MemoryStore(genId)
+  const proposals = new ProposalStore(genId)
   const docStore = new DocEditorStore('Untitled.md', '')
   const registry = new Registry()
 
@@ -64,10 +67,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const saveChat = debounce(() => { void chatScope.set('messages', engine.getState().messages) }, 400)
   engine.subscribe(saveChat)
 
-  const notes = createNotesFeature({ docStore, library, engine, broker, memory })
+  const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals })
   for (const feature of [notes]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
-  return { features: [notes], broker, memory, engine, docStore, library }
+  return { features: [notes], broker, memory, engine, docStore, library, proposals }
 }

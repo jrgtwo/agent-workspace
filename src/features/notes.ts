@@ -22,20 +22,20 @@ export function createNotesFeature(deps: {
 }): FeatureManifest {
   const explorer = createDocumentExplorerModule(deps.library)
   const chat = createAiChatModule(deps.engine, deps.broker)
-  const perms = createPermissionPromptModule(deps.broker)
-  const memory = createMemoryViewerModule(deps.memory)
+  // const perms = createPermissionPromptModule(deps.broker)
+  // const memory = createMemoryViewerModule(deps.memory)
   const editor = createDocEditorModule(deps.docStore, deps.proposals, deps.saveImage)
   return {
     id: 'notes', name: 'Notes', icon: '📝',
-    modules: [explorer, chat, perms, memory, editor],
+    modules: [explorer, chat, /*perms, memory,*/ editor],
     // Explorer | (AI Chat / Permissions / Memory) | Document Editor
     layout: {
       type: 'split', direction: 'horizontal', children: [
         { type: 'panel', moduleId: 'document-explorer', size: 16 },
         { type: 'split', direction: 'vertical', size: 28, children: [
           { type: 'panel', moduleId: 'ai-chat', size: 50 },
-          { type: 'panel', moduleId: 'permission-prompt', size: 20 },
-          { type: 'panel', moduleId: 'memory-viewer', size: 30 },
+          // { type: 'panel', moduleId: 'permission-prompt', size: 20 },
+          // { type: 'panel', moduleId: 'memory-viewer', size: 30 },
         ] },
         { type: 'panel', moduleId: 'doc-editor', size: 56 },
       ],

@@ -32,7 +32,7 @@ describe('Notes slice — canonical scenario', () => {
     const services = await createServices({ client, backend: new MemoryBackend() })
     services.docStore.setText('draft intro')
 
-    render(<WorkspaceShell features={services.features} />)
+    render(<WorkspaceShell features={services.features} theme={services.theme} />)
 
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'tighten my intro' } })
     fireEvent.click(screen.getByRole('button', { name: /send/i }))

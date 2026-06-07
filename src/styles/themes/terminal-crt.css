@@ -1,0 +1,7 @@
+/* src/styles/themes/terminal-crt.css
+   Same palette as Terminal (:root), with CRT effects turned up. */
+[data-theme="terminal-crt"] {
+  --glow-accent: 0 0 8px rgba(111, 207, 142, 0.55);
+  --scanline-opacity: 0.16;
+  --vignette-opacity: 0.5;
+}

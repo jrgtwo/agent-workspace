@@ -1,0 +1,39 @@
+/* src/styles/themes/midnight.css
+   Cool slate-blue, cyan accent, rounder, soft glow, no scanlines. */
+[data-theme="midnight"] {
+  --bg: #161a21;
+  --surface: #1d222b;
+  --surface-2: #252a35;
+  --surface-3: #2d333f;
+  --border: #2c313c;
+  --border-strong: #3a4150;
+
+  --text: #c4cbd7;
+  --text-strong: #eef1f6;
+  --text-muted: #8a93a4;
+
+  --accent: #22d3ee;
+  --accent-strong: #67e8f9;
+  --accent-fg: #04222a;
+  --accent-soft: rgba(34, 211, 238, 0.12);
+
+  --success: #5fd6a0; --success-soft: rgba(95,214,160,.12); --success-fg: #042018;
+  --danger:  #f08c8c; --danger-soft:  rgba(240,140,140,.14); --danger-fg:  #2a0f0f;
+  --warning: #e2c275; --warning-soft: rgba(226,194,117,.12); --warning-fg: #241c00;
+  /* cyan intentionally doubles as the info color in this theme */
+  --info:    #22d3ee; --info-soft:    rgba(34,211,238,.12);  --info-fg:    #04222a;
+
+  --syntax-keyword: #c792ea;
+  --syntax-fn:      #82aaff;
+  --syntax-string:  #c3e88d;
+  --syntax-punc:    #8a93a4;
+  --syntax-accent:  #22d3ee;
+  --diff-add-fg: #5fd6a0; --diff-add-bg: rgba(95,214,160,.12);
+  --diff-del-fg: #f08c8c; --diff-del-bg: rgba(240,140,140,.14);
+
+  --radius-control: var(--radius-md);
+  --radius-panel:   var(--radius-lg);
+  --radius-bubble:  var(--radius-lg);
+
+  --glow-accent: 0 0 12px rgba(34, 211, 238, 0.18);
+}

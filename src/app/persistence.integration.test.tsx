@@ -37,4 +37,14 @@ describe('persistence', () => {
       expect(mem.entries.map((e) => e.text)).toContain('learned something')
     })
   })
+
+  it('persists the selected theme across reloads', async () => {
+    const backend = new MemoryBackend()
+    const a = await createServices({ client: noClient, backend })
+    a.theme.setTheme('midnight')
+    await new Promise((r) => setTimeout(r, 450)) // let debounced save flush
+
+    const b = await createServices({ client: noClient, backend })
+    expect(b.theme.getState()).toEqual({ theme: 'midnight' })
+  })
 })

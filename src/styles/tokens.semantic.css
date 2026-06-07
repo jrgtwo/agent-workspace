@@ -1,0 +1,53 @@
+/* src/styles/tokens.semantic.css
+   The semantic token CONTRACT. :root values ARE the default "Terminal" theme
+   (muted retro-futuristic CRT palette, effects OFF). Other themes override these
+   via [data-theme]. Components must use ONLY these names — never raw hex. */
+:root {
+  /* surfaces / structure */
+  --bg: #0a0b0e;
+  --surface: #101218;
+  --surface-2: #161922;
+  --surface-3: #1c2030;
+  --border: #1b1f2a;
+  --border-strong: #2a3040;
+
+  /* text */
+  --text: #c6ccd6;
+  --text-strong: #eef3ee;
+  --text-muted: #6b7280;
+
+  /* accent (phosphor green) */
+  --accent: #6fcf8e;
+  --accent-strong: #8fe0a8;
+  --accent-fg: #06210f;
+  --accent-soft: rgba(111, 207, 142, 0.12);
+
+  /* status */
+  --success: #6fcf8e; --success-soft: rgba(111,207,142,.12); --success-fg: #06210f;
+  --danger:  #cf8b8b; --danger-soft:  rgba(207,139,139,.14); --danger-fg:  #2a0f0f;
+  --warning: #cdb877; --warning-soft: rgba(205,184,119,.12); --warning-fg: #241c00;
+  --info:    #79c2cf; --info-soft:    rgba(121,194,207,.12); --info-fg:    #04222a;
+
+  /* syntax / diff (editor + review) */
+  --syntax-keyword: #c19ad0;
+  --syntax-fn:      #79cfe0;
+  --syntax-string:  #cdac79;
+  --syntax-punc:    #7e8696;
+  --syntax-accent:  #6fcf8e;
+  --diff-add-fg: #7fbf8c; --diff-add-bg: rgba(111,207,142,.12);
+  --diff-del-fg: #cf8b8b; --diff-del-bg: rgba(207,139,139,.14);
+
+  /* semantic radii (themes pick their feel; reference the base scale) */
+  --radius-control: var(--radius-sm); /* buttons, inputs, list items */
+  --radius-panel:   var(--radius-md); /* panel frames, cards */
+  --radius-bubble:  var(--radius-md); /* chat bubbles */
+
+  /* depth */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-md: 0 8px 24px -8px rgba(0,0,0,.6), 0 2px 6px -2px rgba(0,0,0,.5);
+
+  /* EFFECT tokens — OFF by default */
+  --glow-accent: 0 0 0 transparent;  /* used in text-shadow / box-shadow */
+  --scanline-opacity: 0;
+  --vignette-opacity: 0;
+}

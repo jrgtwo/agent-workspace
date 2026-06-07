@@ -13,10 +13,10 @@ export default function App() {
 
   if (!services) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', color: '#888', font: 'inherit' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', color: 'var(--text-muted)', background: 'var(--bg)', font: 'inherit' }}>
         Loading workspace…
       </div>
     )
   }
-  return <WorkspaceShell features={services.features} />
+  return <WorkspaceShell features={services.features} theme={services.theme} />
 }

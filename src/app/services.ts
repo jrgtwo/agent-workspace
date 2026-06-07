@@ -4,6 +4,7 @@ import { ProposalStore } from '../core/proposalStore'
 import { LlamaClient } from '../core/llamaClient'
 import { Registry } from '../core/registry'
 import { AgentEngine } from '../core/agentEngine'
+import { ThemeStore, applyTheme } from '../core/themeStore'
 import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createNotesFeature } from '../features/notes'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
@@ -29,6 +30,7 @@ export interface AppServices {
   docStore: DocEditorStore
   library: DocumentLibraryStore
   proposals: ProposalStore
+  theme: ThemeStore
 }
 
 export interface CreateServicesOpts {
@@ -43,6 +45,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const broker = new PermissionBroker(genId)
   const memory = new MemoryStore(genId)
   const proposals = new ProposalStore(genId)
+  const theme = new ThemeStore()
   const docStore = new DocEditorStore('Untitled.md', '')
   const registry = new Registry()
 
@@ -58,6 +61,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const library = new DocumentLibraryStore(docStore, storage.scope('doc-editor'), genId)
   await library.init()
   await persistState(memory, storage.scope('memory'), 'entries')
+  await persistState(theme, storage.scope('theme'), 'state')
+  applyTheme(theme.getState().theme) // set initial attribute before first paint
 
   // Chat: custom hookup because the system prompt is re-seeded each launch.
   const chatScope = storage.scope('chat')
@@ -81,5 +86,5 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
-  return { features: [notes], broker, memory, engine, docStore, library, proposals }
+  return { features: [notes], broker, memory, engine, docStore, library, proposals, theme }
 }

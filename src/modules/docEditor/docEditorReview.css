@@ -5,10 +5,54 @@
   border-bottom: 1px solid var(--info); font-size: var(--text-xs); color: var(--info);
 }
 .review__actions { display: flex; gap: var(--space-2); }
-.review__body { flex: 1; overflow-y: auto; padding: var(--space-3); white-space: pre-wrap; font: inherit; font-size: var(--text-md); line-height: 1.7; color: var(--text); }
+.review__body { flex: 1; overflow-y: auto; padding: var(--space-3); font: inherit; font-size: var(--text-md); line-height: 1.7; color: var(--text); }
 .review__unplaced { margin-bottom: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .review__unplaced-card { background: var(--warning-soft); border: 1px solid var(--warning); border-radius: var(--radius-panel); padding: var(--space-2); font-size: var(--text-sm); }
-.review__muted { color: var(--text-muted); }
+.review__muted { color: var(--text-muted); margin-bottom: var(--space-1); }
+
+/* the review body reads like the document */
+.review__body.doc h1 { font-size: var(--text-xl); color: var(--text-strong); margin: 0 0 var(--space-2); }
+.review__body.doc h2 { font-size: var(--text-lg); color: var(--accent-strong); margin: var(--space-4) 0 var(--space-2); }
+.review__body.doc p, .review-para { margin: var(--space-3) 0; }
+.review__body.doc ul, .review__body.doc ol { margin: var(--space-2) 0; padding-left: var(--space-5); }
+/* unchanged inline code stays NEUTRAL in the review — green is reserved for additions */
+.review__body.doc code { background: var(--surface-2); color: var(--text); padding: 0 4px; border-radius: var(--radius-sm); font-family: var(--mono); font-size: .9em; }
+.review__body.doc blockquote { border-left: 3px solid var(--border-strong); margin: var(--space-2) 0; padding: 0 var(--space-3); color: var(--text-muted); }
+
+/* inline change: word-level, in the sentence (red = removed/strike, green = added) */
 .diff-del { color: var(--diff-del-fg); background: var(--diff-del-bg); border-radius: 3px; padding: 0 2px; text-decoration: line-through; }
 .diff-add { color: var(--diff-add-fg); background: var(--diff-add-bg); border-radius: 3px; padding: 0 2px; }
-.diff-actions { display: inline-flex; gap: 2px; margin: 0 var(--space-1); vertical-align: middle; }
+/* an inline-code edit keeps a monospace, code-like look */
+.i-change--code .diff-del, .i-change--code .diff-add { font-family: var(--mono); font-size: .9em; }
+
+/* shared per-change controls + hover-why */
+.diff-ctrl { display: inline-flex; gap: 2px; margin: 0 4px; vertical-align: middle; }
+.diff-ctrl .btn--icon { font-size: var(--text-xs); padding: 0 var(--space-1); }
+.diff-why { position: relative; cursor: help; color: var(--warning); margin-left: 2px; vertical-align: middle; }
+.diff-why__pop {
+  display: none; position: absolute; left: 0; top: 150%; z-index: var(--z-menu);
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: var(--space-2); width: 280px; font-size: var(--text-sm); line-height: 1.5; color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+.diff-why:hover .diff-why__pop, .diff-why:focus-within .diff-why__pop, .diff-why:focus .diff-why__pop { display: block; }
+
+/* break-out change: set apart inside the paragraph, prose keeps its margin */
+.edit { display: block; margin: var(--space-2) 0; padding: var(--space-1) var(--space-3); border-left: 2px solid var(--border-strong); }
+.edit .row { display: block; margin: var(--space-1) 0; }
+.edit .lab { display: inline-block; width: 64px; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--label-tracking); color: var(--text-muted); vertical-align: top; }
+.edit .old { color: var(--diff-del-fg); background: var(--diff-del-bg); border-radius: 3px; padding: 0 3px; }
+.edit .new { color: var(--diff-add-fg); background: var(--diff-add-bg); border-radius: 3px; padding: 0 3px; }
+/* structural was/now: render the actual markdown (lists, headings) tinted, not flattened */
+.edit .old--block, .edit .new--block { display: block; background: none; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); margin-top: var(--space-1); }
+.edit .old--block { background: var(--diff-del-bg); border-left: 2px solid var(--diff-del-fg); }
+.edit .new--block { background: var(--diff-add-bg); border-left: 2px solid var(--diff-add-fg); }
+.edit .old--block > :first-child, .edit .new--block > :first-child { margin-top: 0; }
+.edit .old--block > :last-child, .edit .new--block > :last-child { margin-bottom: 0; }
+.edit .old--block h1, .edit .new--block h1 { font-size: var(--text-lg); margin: var(--space-2) 0 var(--space-1); }
+.edit__foot { display: block; margin-top: var(--space-1); }
+
+/* code change: word diff of the code, monospace, in place */
+.code-edit { margin: var(--space-2) 0; border: 1px solid var(--border); border-radius: var(--radius-panel); overflow: hidden; }
+.code-edit__body { margin: 0; padding: var(--space-2) var(--space-3); font-family: var(--mono); font-size: .9em; white-space: pre-wrap; color: var(--text); }
+.code-edit .edit__foot { padding: var(--space-1) var(--space-3); border-top: 1px solid var(--border); }

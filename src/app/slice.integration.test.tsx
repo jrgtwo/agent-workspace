@@ -25,7 +25,7 @@ describe('Notes slice — canonical scenario', () => {
   it('reads (gated), proposes an edit, remembers, then the user accepts the diff to apply it', async () => {
     const client = scriptedClient([
       { content: '', toolCalls: [{ id: 'c1', name: 'read_document', arguments: '{}' }] },
-      { content: '', toolCalls: [{ id: 'c2', name: 'propose_edit', arguments: JSON.stringify({ find: 'draft intro', replace: 'A crisp, direct intro.' }) }] },
+      { content: '', toolCalls: [{ id: 'c2', name: 'propose_edit', arguments: JSON.stringify({ find: 'draft intro', replace: 'A crisp, direct intro.', reason: 'tighter opening' }) }] },
       { content: '', toolCalls: [{ id: 'c3', name: 'remember', arguments: JSON.stringify({ fact: 'User prefers crisp, direct intros.' }) }] },
       { content: 'Done — I tightened your intro.', toolCalls: [] },
     ])
@@ -48,8 +48,12 @@ describe('Notes slice — canonical scenario', () => {
     expect(screen.getByText('User prefers crisp, direct intros.')).toBeInTheDocument()
 
     // 3) The edit is pending as a diff, NOT yet applied: the editor is replaced by review mode.
+    //    The review shows a word-level diff (added words highlighted), so check the added text
+    //    is present rather than expecting the whole replacement as one contiguous node.
     expect(screen.queryByLabelText('document')).not.toBeInTheDocument()
-    expect(await screen.findByText('A crisp, direct intro.')).toBeInTheDocument()
+    const review = await screen.findByLabelText('diff-review')
+    expect(review.querySelector('.diff-add')).toBeTruthy()
+    expect(review.textContent).toContain('crisp')
 
     // 4) Accepting the diff is the write authorization → text applied, editor returns.
     fireEvent.click(screen.getAllByRole('button', { name: /accept this change/i })[0])

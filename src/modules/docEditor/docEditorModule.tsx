@@ -2,7 +2,8 @@ import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { DocEditorStore } from './docEditorStore'
 import type { ProposalStore } from '../../core/proposalStore'
-import { ReviewPanel, type DocEditPayload } from './docEditorReview'
+import { ReviewPanel } from './docEditorReview'
+import type { DocEditPayload } from './diff/types'
 import { MilkdownEditor } from './milkdownEditor'
 
 function DocEditorPanel({ store, proposals, saveImage }: { store: DocEditorStore; proposals: ProposalStore; saveImage?: (file: File) => Promise<string> }) {
@@ -18,9 +19,9 @@ function DocEditorPanel({ store, proposals, saveImage }: { store: DocEditorStore
     <ReviewPanel
       text={text}
       changes={mine}
-      onAccept={(c) => { store.applyChange(c.payload as DocEditPayload); proposals.remove(c.id) }}
+      onAccept={(c) => { if (store.applyChange(c.payload as DocEditPayload)) proposals.remove(c.id) }}
       onReject={(c) => proposals.remove(c.id)}
-      onAcceptAll={() => { for (const c of [...mine]) { store.applyChange(c.payload as DocEditPayload); proposals.remove(c.id) } }}
+      onAcceptAll={() => { for (const c of [...mine]) { if (store.applyChange(c.payload as DocEditPayload)) proposals.remove(c.id) } }}
       onRejectAll={() => { for (const c of [...mine]) proposals.remove(c.id) }}
     />
   )
@@ -45,17 +46,21 @@ export function createDocEditorModule(store: DocEditorStore, proposals: Proposal
       {
         name: 'propose_edit',
         description:
-          'Propose replacing the first occurrence of `find` with `replace`. The change is shown to the user as a diff to accept or reject; it is NOT applied until they accept.',
+          'Propose replacing the first occurrence of `find` with `replace`. Make ONE small, single-purpose edit per call — keep `find` to the smallest span that captures the change (a phrase, sentence, or single paragraph), and do NOT bundle unrelated edits into one call. To make several changes, call propose_edit multiple times so the user can accept or reject each independently. ALWAYS include `reason`: one short sentence explaining why this edit improves the document. The change is shown to the user as a diff to accept or reject; it is NOT applied until they accept.',
         parameters: {
           type: 'object',
-          properties: { find: { type: 'string' }, replace: { type: 'string' } },
-          required: ['find', 'replace'],
+          properties: {
+            find: { type: 'string' },
+            replace: { type: 'string' },
+            reason: { type: 'string', description: 'One short sentence: why this edit is proposed.' },
+          },
+          required: ['find', 'replace', 'reason'],
         },
-        handler: (a: { find: string; replace: string }) => {
+        handler: (a: { find: string; replace: string; reason: string }) => {
           proposals.propose({
             moduleId: 'doc-editor',
             summary: `Replace "${a.find}" with "${a.replace}"`,
-            payload: { find: a.find, replace: a.replace },
+            payload: { find: a.find, replace: a.replace, reason: a.reason } satisfies DocEditPayload,
           })
           return { proposed: true, message: 'Proposed edit; awaiting your review.' }
         },

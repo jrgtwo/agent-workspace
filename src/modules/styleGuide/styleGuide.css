@@ -1,0 +1,9 @@
+.guide { padding: var(--space-4); overflow-y: auto; height: 100%; color: var(--text); }
+.guide h2 { font-size: var(--text-lg); color: var(--text-strong); margin: 0 0 var(--space-3); }
+.guide h3 { font-size: var(--text-md); color: var(--text-muted); letter-spacing: var(--label-tracking); text-transform: uppercase; margin: var(--space-5) 0 var(--space-2); }
+.guide__swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-2); }
+.guide__swatch { border: 1px solid var(--border); border-radius: var(--radius-panel); overflow: hidden; font-size: var(--text-xs); }
+.guide__chip { height: 44px; }
+.guide__swatch span { display: block; padding: var(--space-1) var(--space-2); background: var(--surface); color: var(--text-muted); }
+.guide__row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin-bottom: var(--space-2); }
+.guide__type > * { margin: 0 0 var(--space-2); }

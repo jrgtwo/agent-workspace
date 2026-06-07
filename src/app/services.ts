@@ -7,6 +7,7 @@ import { AgentEngine } from '../core/agentEngine'
 import { ThemeStore, applyTheme } from '../core/themeStore'
 import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createNotesFeature } from '../features/notes'
+import { createStyleGuideFeature } from '../features/styleguide'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { createStorage } from '../core/storage/storage'
 import { persistState, debounce } from '../core/storage/persistState'
@@ -82,9 +83,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   }
 
   const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals, saveImage })
-  for (const feature of [notes]) {
+  const styleguide = createStyleGuideFeature()
+  for (const feature of [notes, styleguide]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
-  return { features: [notes], broker, memory, engine, docStore, library, proposals, theme }
+  return { features: [notes, styleguide], broker, memory, engine, docStore, library, proposals, theme }
 }

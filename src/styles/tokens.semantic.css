@@ -2,7 +2,7 @@
    The semantic token CONTRACT. :root values ARE the default "Terminal" theme
    (muted retro-futuristic CRT palette, effects OFF). Other themes override these
    via [data-theme]. Components must use ONLY these names — never raw hex. */
-:root {
+:root, [data-theme="terminal"] {
   /* surfaces / structure */
   --bg: #0a0b0e;
   --surface: #101218;

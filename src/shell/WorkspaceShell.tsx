@@ -14,13 +14,7 @@ export function WorkspaceShell({ features, theme }: { features: FeatureManifest[
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
-      <FeatureRail
-        features={features}
-        activeId={activeId}
-        onSelect={setActiveId}
-        activeTheme={themeId}
-        onTheme={(id) => theme.setTheme(id)}
-      />
+      <FeatureRail features={features} activeId={activeId} onSelect={setActiveId} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <PanelArea manifest={active} />
       </div>

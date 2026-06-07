@@ -1,16 +1,17 @@
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { MemoryStore } from '../../core/memoryStore'
+import './memoryViewer.css'
 
 function MemoryPanel({ store }: { store: MemoryStore }) {
   const { entries } = useStore(store)
   return (
-    <div style={{ padding: 10, overflowY: 'auto', height: '100%' }}>
-      {entries.length === 0 && <p style={{ color: '#888', fontSize: 12 }}>Nothing learned yet.</p>}
+    <div className="memory">
+      {entries.length === 0 && <p className="memory__empty">Nothing learned yet.</p>}
       {entries.map((e) => (
-        <div key={e.id} style={{ display: 'flex', gap: 8, alignItems: 'start', marginBottom: 6, fontSize: 12 }}>
-          <span style={{ flex: 1 }}>{e.text}</span>
-          <button aria-label={`forget ${e.id}`} onClick={() => store.remove(e.id)}>✕</button>
+        <div key={e.id} className="memory__row">
+          <span className="memory__text">{e.text}</span>
+          <button className="btn btn--icon" aria-label={`forget ${e.id}`} onClick={() => store.remove(e.id)}>✕</button>
         </div>
       ))}
     </div>

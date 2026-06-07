@@ -1,0 +1,13 @@
+/* src/styles/components.css — shared, token-driven primitives used across panels. */
+.btn {
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+  padding: var(--space-1) var(--space-3); cursor: pointer; font: inherit; font-size: var(--text-sm);
+  transition: var(--transition);
+}
+.btn:hover { border-color: var(--border-strong); color: var(--text-strong); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn--accent { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn--danger { color: var(--danger); }
+.btn--icon { border: none; background: none; color: var(--text-muted); padding: var(--space-1); }
+.btn--icon:hover { color: var(--text); }

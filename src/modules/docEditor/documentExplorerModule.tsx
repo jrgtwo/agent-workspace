@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { DocumentLibraryStore } from './documentLibraryStore'
+import './documentExplorer.css'
 
 function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
   const { docs, activeId } = useStore(library)
@@ -16,14 +17,14 @@ function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
   }
 
   return (
-    <div style={{ padding: 8, height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.05em', color: '#667' }}>DOCUMENTS</span>
-        <button aria-label="new document" onClick={() => void library.create()} style={{ marginLeft: 'auto', fontSize: 11 }}>+ New</button>
+    <div className="explorer">
+      <div className="explorer__head">
+        <span className="explorer__title">DOCUMENTS</span>
+        <button aria-label="new document" onClick={() => void library.create()} className="btn btn--icon" style={{ marginLeft: 'auto' }}>+ New</button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div className="explorer__list">
         {docs.map((d) => (
-          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div key={d.id} className="explorer__row">
             {renamingId === d.id ? (
               <input
                 autoFocus
@@ -32,13 +33,13 @@ function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
                 onChange={(e) => setDraft(e.target.value)}
                 onBlur={commitRename}
                 onKeyDown={(e) => { if (e.key === 'Enter') commitRename() }}
-                style={{ flex: 1, fontSize: 11 }}
+                className="explorer__rename"
               />
             ) : (
               <button
                 onClick={() => void library.setActive(d.id)}
                 onDoubleClick={() => startRename(d.id, d.name)}
-                style={{ flex: 1, textAlign: 'left', fontSize: 11, padding: '4px 6px', borderRadius: 4, border: '1px solid #ececf3', cursor: 'pointer', background: d.id === activeId ? '#5b6cff' : '#fff', color: d.id === activeId ? '#fff' : '#445' }}
+                className={`explorer__item${d.id === activeId ? ' explorer__item--active' : ''}`}
               >
                 {d.name}
               </button>
@@ -46,7 +47,7 @@ function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
             <button
               aria-label={`delete ${d.name}`}
               onClick={() => { if (confirm(`Delete ${d.name}?`)) void library.delete(d.id) }}
-              style={{ fontSize: 10, color: '#a55', border: 'none', background: 'none', cursor: 'pointer' }}
+              className="btn btn--icon btn--danger"
             >
               ✕
             </button>

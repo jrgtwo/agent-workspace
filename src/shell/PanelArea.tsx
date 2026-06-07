@@ -1,17 +1,18 @@
 import type { JSX } from 'react'
 import { Panel, Group, Separator } from 'react-resizable-panels'
 import type { FeatureManifest, LayoutNode, WorkspaceModule } from '../core/types'
+import './panelArea.css'
 
 function PanelFrame({ module }: { module: WorkspaceModule }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', border: '1px solid #e0e0e8', borderRadius: 8, overflow: 'hidden' }}>
-      <div style={{ padding: '6px 10px', borderBottom: '1px solid #eee', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, background: '#fafafe' }}>
+    <div className="panel-frame">
+      <div className="panel-frame__header">
         <span>{module.title}</span>
-        <span style={{ marginLeft: 'auto', fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 10, background: module.locality === 'LOCAL' ? '#e4f6ea' : '#fdeede', color: module.locality === 'LOCAL' ? '#2c7a47' : '#a8631a' }}>
+        <span className={`locality locality--${module.locality === 'LOCAL' ? 'local' : 'network'}`}>
           {module.locality}
         </span>
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>{module.render()}</div>
+      <div className="panel-frame__body">{module.render()}</div>
     </div>
   )
 }
@@ -52,7 +53,7 @@ export function PanelArea({ manifest }: { manifest: FeatureManifest }) {
   const modules = new Map(manifest.modules.map((m) => [m.id, m]))
   const root = manifest.layout
   return (
-    <div style={{ height: '100%', background: '#eef0f5' }}>
+    <div className="panel-area">
       {root.type === 'panel' ? (
         <div style={{ height: '100%', padding: 4 }}>
           <PanelFrame module={modules.get(root.moduleId)!} />

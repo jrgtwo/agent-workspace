@@ -1,4 +1,5 @@
 import type { BlockKind, InlineKind, MenuPick } from './milkdown/commands'
+import './editorChrome.css'
 
 // Re-export so existing call sites that imported MenuPick from here continue to work.
 export type { MenuPick }
@@ -29,10 +30,11 @@ export function EditorContextMenu({ x, y, hasSelection, onPick, onClose }: {
     <div
       role="menu"
       onMouseLeave={onClose}
-      style={{ position: 'fixed', top: y, left: x, background: '#fff', border: '1px solid #e0e0e6', borderRadius: 8, boxShadow: '0 6px 22px rgba(0,0,0,.16)', padding: 5, zIndex: 50, width: 170, fontSize: 13 }}
+      className="menu menu--context"
+      style={{ top: y, left: x }}
     >
       {items.map((it) => (
-        <div key={it.label} role="menuitem" tabIndex={0} onClick={() => { onPick(it.pick); onClose() }} style={{ padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}>{it.label}</div>
+        <div key={it.label} role="menuitem" className="menu__item" tabIndex={0} onClick={() => { onPick(it.pick); onClose() }}>{it.label}</div>
       ))}
     </div>
   )

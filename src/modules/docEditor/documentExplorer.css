@@ -1,0 +1,17 @@
+.explorer { padding: var(--space-2); height: 100%; display: flex; flex-direction: column; gap: var(--space-2); }
+.explorer__head { display: flex; align-items: center; }
+.explorer__title { font-size: 9px; font-weight: 700; letter-spacing: var(--label-tracking); color: var(--text-muted); }
+.explorer__list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.explorer__row { display: flex; align-items: center; gap: var(--space-1); }
+.explorer__item {
+  flex: 1; text-align: left; font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-control);
+  border: 1px solid var(--border); cursor: pointer;
+  background: var(--surface); color: var(--text); transition: var(--transition);
+}
+.explorer__item:hover { border-color: var(--border-strong); }
+.explorer__item--active {
+  background: var(--accent-soft); color: var(--accent);
+  border-color: var(--accent); box-shadow: var(--glow-accent);
+}
+.explorer__rename { flex: 1; font-size: var(--text-xs); background: var(--surface-2); color: var(--text); border: 1px solid var(--accent); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); }

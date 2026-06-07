@@ -1,23 +1,24 @@
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { PermissionBroker } from '../../core/permissionBroker'
+import './permissionPrompt.css'
 
 function PermissionPanel({ broker }: { broker: PermissionBroker }) {
   const { pending } = useStore(broker)
   if (pending.length === 0) {
-    return <div style={{ padding: 8, fontSize: 11, color: '#999' }}>No pending requests.</div>
+    return <div className="perms__empty">No pending requests.</div>
   }
   return (
-    <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="perms">
       {pending.map((req) => (
-        <div key={req.id} style={{ background: '#fff7e6', border: '1px solid #ffe2a8', borderRadius: 6, padding: 8, fontSize: 12 }}>
-          <div style={{ marginBottom: 6 }}>
+        <div key={req.id} className="perms__card">
+          <div className="perms__head">
             <strong>{req.scope.locality}</strong> · <span>{req.detail}</span>
-            {req.surfaceId && <span style={{ marginLeft: 6, fontSize: 10, color: '#888' }}>[{req.surfaceId}]</span>}
+            {req.surfaceId && <span className="perms__surface">[{req.surfaceId}]</span>}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => broker.allow(req.id)}>Allow</button>
-            <button onClick={() => broker.deny(req.id)}>Deny</button>
+          <div className="perms__row">
+            <button className="btn btn--accent" onClick={() => broker.allow(req.id)}>Allow</button>
+            <button className="btn" onClick={() => broker.deny(req.id)}>Deny</button>
           </div>
         </div>
       ))}

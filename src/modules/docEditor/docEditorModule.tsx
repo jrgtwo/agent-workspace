@@ -46,7 +46,7 @@ export function createDocEditorModule(store: DocEditorStore, proposals: Proposal
       {
         name: 'propose_edit',
         description:
-          'Propose replacing the first occurrence of `find` with `replace`. Make ONE small, single-purpose edit per call — keep `find` to the smallest span that captures the change (a phrase, sentence, or single paragraph), and do NOT bundle unrelated edits into one call. To make several changes, call propose_edit multiple times so the user can accept or reject each independently. ALWAYS include `reason`: one short sentence explaining why this edit improves the document. The change is shown to the user as a diff to accept or reject; it is NOT applied until they accept.',
+          'Propose replacing the first occurrence of `find` with `replace`. Make ONE small, single-purpose edit per call — keep `find` to the smallest span that captures the change (a phrase, sentence, or single paragraph), and do NOT bundle unrelated edits into one call. When rewording, INCLUDE the words being replaced in `find` (e.g. to change "dreaming" to "and dreamed", use find "dreaming", not an insertion next to it) so the diff shows the removal. To make several changes, call propose_edit multiple times so the user can accept or reject each independently. ALWAYS include `reason`: one short sentence explaining why this edit improves the document. The change is shown to the user as a diff to accept or reject; it is NOT applied until they accept.',
         parameters: {
           type: 'object',
           properties: {

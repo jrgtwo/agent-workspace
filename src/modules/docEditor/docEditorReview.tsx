@@ -1,3 +1,4 @@
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingChange } from '../../core/proposalStore'
 import type { DocEditPayload, Segment } from './diff/types'
@@ -9,6 +10,17 @@ import { toPlainText } from './markdown/plainText'
 import './docEditorReview.css'
 
 export type { DocEditPayload }
+
+/** Lets each change register its element and know whether it's the navigated-to ("current") one. */
+const NavContext = createContext<{
+  currentId: string | null
+  register: (id: string, el: HTMLElement | null) => void
+}>({ currentId: null, register: () => {} })
+
+function useNav(id: string) {
+  const { currentId, register } = useContext(NavContext)
+  return { isCurrent: id === currentId, ref: (el: HTMLElement | null) => register(id, el) }
+}
 
 /** A fenced code block — shown as code, not prose. */
 function isCodeBlock(source: string): boolean {
@@ -58,19 +70,21 @@ function WhyHover({ reason }: { reason: string }) {
 }
 
 /** Small localized change: the word diff shown in place within the sentence. */
-function InlineChange({ find, replace, reason, onAccept, onReject }: {
-  find: string; replace: string; reason: string; onAccept: () => void; onReject: () => void
+function InlineChange({ id, find, replace, reason, onAccept, onReject }: {
+  id: string; find: string; replace: string; reason: string; onAccept: () => void; onReject: () => void
 }) {
   const segs = wordDiff(toPlainText(find), toPlainText(replace))
   const code = isInlineCode(find) || isInlineCode(replace)
+  const { isCurrent, ref } = useNav(id)
+  const cls = ['i-change', code && 'i-change--code', isCurrent && 'is-current'].filter(Boolean).join(' ')
   return (
-    <span className={code ? 'i-change i-change--code' : 'i-change'}>{segNodes(segs)}<Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} /></span>
+    <span ref={ref} className={cls}>{segNodes(segs)}<Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} /></span>
   )
 }
 
 /** A whole sentence/clause/paragraph replaced — set apart as labelled was/now (or added/removed). */
-function BreakoutChange({ find, replace, reason, onAccept, onReject }: {
-  find: string; replace: string; reason: string; onAccept: () => void; onReject: () => void
+function BreakoutChange({ id, find, replace, reason, onAccept, onReject }: {
+  id: string; find: string; replace: string; reason: string; onAccept: () => void; onReject: () => void
 }) {
   const segs = wordDiff(toPlainText(find), toPlainText(replace))
   const delRuns = segs.filter((s) => s.type === 'del' && s.text.trim().length > 0).length
@@ -93,8 +107,9 @@ function BreakoutChange({ find, replace, reason, onAccept, onReject }: {
       </>
     )
   }
+  const { isCurrent, ref } = useNav(id)
   return (
-    <div className="edit">
+    <div ref={ref} className={isCurrent ? 'edit is-current' : 'edit'}>
       {rows}
       <div className="edit__foot"><Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} /></div>
     </div>
@@ -107,8 +122,10 @@ function CodeChange({ before, after, changes, onAccept, onReject }: {
   onAccept: (c: PendingChange) => void; onReject: (c: PendingChange) => void
 }) {
   const segs = wordDiff(stripFence(before), stripFence(after))
+  const { currentId, register } = useContext(NavContext)
+  const isCurrent = changes.some((c) => c.id === currentId)
   return (
-    <div className="code-edit">
+    <div ref={(el) => changes.forEach((c) => register(c.id, el))} className={isCurrent ? 'code-edit is-current' : 'code-edit'}>
       <pre className="code-edit__body">{segNodes(segs)}</pre>
       {changes.map((c) => (
         <span key={c.id} className="edit__foot">
@@ -136,11 +153,11 @@ function ChangedBlock({ before, after, changes, onAccept, onReject }: {
     const at = before.indexOf(find, cursor)
     if (at < 0) {
       // couldn't place (e.g. overlaps a prior change) — fall back to a break-out at the end
-      nodes.push(<BreakoutChange key={c.id} find={find} replace={replace} reason={reason} onAccept={() => onAccept(c)} onReject={() => onReject(c)} />)
+      nodes.push(<BreakoutChange key={c.id} id={c.id} find={find} replace={replace} reason={reason} onAccept={() => onAccept(c)} onReject={() => onReject(c)} />)
       return
     }
     if (at > cursor) nodes.push(<MarkdownInline key={`p${idx}`} source={before.slice(cursor, at)} />)
-    const props = { find, replace, reason, onAccept: () => onAccept(c), onReject: () => onReject(c) }
+    const props = { id: c.id, find, replace, reason, onAccept: () => onAccept(c), onReject: () => onReject(c) }
     nodes.push(
       classifyTreatment(find, replace) === 'inline'
         ? <InlineChange key={c.id} {...props} />
@@ -161,42 +178,77 @@ export function ReviewPanel({ text, changes, onAccept, onReject, onAcceptAll, on
   onRejectAll: () => void
 }) {
   const { items, unplaced } = placeChanges(text, changes)
+
+  // edits in document order, for prev/next navigation
+  const orderedIds: string[] = []
+  for (const item of items) {
+    if (item.kind === 'change') orderedIds.push(...item.changes.map((c) => c.id))
+    else if (item.kind === 'span') orderedIds.push(item.change.id)
+  }
+  for (const c of unplaced) orderedIds.push(c.id)
+
+  // `selectedId` is the user's chosen edit; if it's been accepted/rejected away, fall back to the
+  // first edit. Deriving `currentId` during render avoids clamping via setState-in-effect.
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const currentId = selectedId && orderedIds.includes(selectedId) ? selectedId : (orderedIds[0] ?? null)
+  const elements = useRef(new Map<string, HTMLElement>())
+  const register = (id: string, el: HTMLElement | null) => {
+    if (el) elements.current.set(id, el)
+    else elements.current.delete(id)
+  }
+
+  // scroll the focused edit into view (no-op under jsdom)
+  useEffect(() => {
+    if (currentId) elements.current.get(currentId)?.scrollIntoView?.({ block: 'center' })
+  }, [currentId])
+
+  const n = orderedIds.length
+  const idx = currentId ? orderedIds.indexOf(currentId) : -1
+  const go = (delta: number) => setSelectedId(orderedIds[Math.min(n - 1, Math.max(0, idx + delta))] ?? null)
+
   return (
-    <div aria-label="diff-review" className="review">
-      <div className="review__head">
-        <span>{changes.length} proposed change{changes.length === 1 ? '' : 's'}</span>
-        <span className="review__actions">
-          <button className="btn" onClick={onAcceptAll}>Accept all</button>
-          <button className="btn" onClick={onRejectAll}>Reject all</button>
-        </span>
-      </div>
-      <div className="review__body doc">
-        {items.map((item, i) => {
-          if (item.kind === 'static') return <MarkdownBlock key={`b${i}`} source={item.source} />
-          if (item.kind === 'span') {
-            const { find, replace, reason } = item.change.payload as DocEditPayload
-            return (
-              <div key={item.change.id} className="review-para">
-                <BreakoutChange find={find} replace={replace} reason={reason} onAccept={() => onAccept(item.change)} onReject={() => onReject(item.change)} />
-              </div>
-            )
-          }
-          return <ChangedBlock key={item.changes[0].id} before={item.before} after={item.after} changes={item.changes} onAccept={onAccept} onReject={onReject} />
-        })}
-        {unplaced.length > 0 && (
-          <div className="review__unplaced">
-            {unplaced.map((c) => {
-              const { find, replace, reason } = c.payload as DocEditPayload
+    <NavContext.Provider value={{ currentId, register }}>
+      <div aria-label="diff-review" className="review">
+        <div className="review__head">
+          <span>{changes.length} proposed change{changes.length === 1 ? '' : 's'}</span>
+          <span className="review__nav">
+            <button className="btn btn--icon" aria-label="Previous change" onClick={() => go(-1)} disabled={n <= 1 || idx <= 0}>‹</button>
+            <span className="review__pos">{n ? idx + 1 : 0} / {n}</span>
+            <button className="btn btn--icon" aria-label="Next change" onClick={() => go(1)} disabled={n <= 1 || idx >= n - 1}>›</button>
+          </span>
+          <span className="review__actions">
+            <button className="btn" onClick={onAcceptAll}>Accept all</button>
+            <button className="btn" onClick={onRejectAll}>Reject all</button>
+          </span>
+        </div>
+        <div className="review__body doc">
+          {items.map((item, i) => {
+            if (item.kind === 'static') return <MarkdownBlock key={`b${i}`} source={item.source} />
+            if (item.kind === 'span') {
+              const { find, replace, reason } = item.change.payload as DocEditPayload
               return (
-                <div key={c.id} className="review__unplaced-card">
-                  <div className="review__muted">This edit no longer matches the document:</div>
-                  <BreakoutChange find={find} replace={replace} reason={reason} onAccept={() => onAccept(c)} onReject={() => onReject(c)} />
+                <div key={item.change.id} className="review-para">
+                  <BreakoutChange id={item.change.id} find={find} replace={replace} reason={reason} onAccept={() => onAccept(item.change)} onReject={() => onReject(item.change)} />
                 </div>
               )
-            })}
-          </div>
-        )}
+            }
+            return <ChangedBlock key={item.changes[0].id} before={item.before} after={item.after} changes={item.changes} onAccept={onAccept} onReject={onReject} />
+          })}
+          {unplaced.length > 0 && (
+            <div className="review__unplaced">
+              {unplaced.map((c) => {
+                const { find, replace, reason } = c.payload as DocEditPayload
+                return (
+                  <div key={c.id} className="review__unplaced-card">
+                    <div className="review__muted">This edit no longer matches the document:</div>
+                    <BreakoutChange id={c.id} find={find} replace={replace} reason={reason} onAccept={() => onAccept(c)} onReject={() => onReject(c)} />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </NavContext.Provider>
   )
 }

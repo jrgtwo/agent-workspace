@@ -141,6 +141,28 @@ describe('ReviewPanel', () => {
     expect(two.getByText('2 proposed changes')).toBeTruthy()
   })
 
+  it('navigation: shows count, focuses current edit, prev/next steps and clamps', () => {
+    const { container, getByLabelText, getByText } = render(
+      <ReviewPanel text={'alpha beta'} changes={[change('alpha', 'ALPHA', 'r', 'a'), change('beta', 'BETA', 'r', 'b')]} {...handlers} />,
+    )
+    expect(getByText('1 / 2')).toBeTruthy()
+    expect(container.querySelector('.is-current')?.textContent).toContain('ALPHA')
+    expect((getByLabelText('Previous change') as HTMLButtonElement).disabled).toBe(true) // clamped at start
+    fireEvent.click(getByLabelText('Next change'))
+    expect(getByText('2 / 2')).toBeTruthy()
+    expect(container.querySelector('.is-current')?.textContent).toContain('BETA')
+    expect((getByLabelText('Next change') as HTMLButtonElement).disabled).toBe(true) // clamped at end
+  })
+
+  it('navigation: arrows disabled with a single change', () => {
+    const { getByLabelText, getByText } = render(
+      <ReviewPanel text={'We ship by Q2.'} changes={[change('Q2', 'Q3', 'r')]} {...handlers} />,
+    )
+    expect(getByText('1 / 1')).toBeTruthy()
+    expect((getByLabelText('Previous change') as HTMLButtonElement).disabled).toBe(true)
+    expect((getByLabelText('Next change') as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('lists a change whose find is gone as no-longer-matching', () => {
     render(<ReviewPanel text={'Nothing matches here.'} changes={[change('absent', 'x', 'why')]} {...handlers} />)
     expect(screen.getByText(/no longer matches/)).toBeTruthy()

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingChange } from '../../core/proposalStore'
 import type { DocEditPayload, Segment } from './diff/types'
-import { placeChanges } from './diff/blocks'
+import { placeChanges, countOccurrences } from './diff/blocks'
 import { wordDiff } from './diff/wordDiff'
 import { classifyTreatment } from './diff/classifyTreatment'
 import { MarkdownBlock, MarkdownInline } from './markdown/renderMarkdown'
@@ -11,15 +11,26 @@ import './docEditorReview.css'
 
 export type { DocEditPayload }
 
-/** Lets each change register its element and know whether it's the navigated-to ("current") one. */
+/** Lets each change register its element, know if it's the navigated-to ("current") one, and learn
+ *  if its `find` matches more than one place in the document (ambiguous → may target the wrong one). */
 const NavContext = createContext<{
   currentId: string | null
   register: (id: string, el: HTMLElement | null) => void
-}>({ currentId: null, register: () => {} })
+  ambiguous: Map<string, number>
+}>({ currentId: null, register: () => {}, ambiguous: new Map() })
 
 function useNav(id: string) {
-  const { currentId, register } = useContext(NavContext)
-  return { isCurrent: id === currentId, ref: (el: HTMLElement | null) => register(id, el) }
+  const { currentId, register, ambiguous } = useContext(NavContext)
+  return { isCurrent: id === currentId, ref: (el: HTMLElement | null) => register(id, el), ambiguousCount: ambiguous.get(id) }
+}
+
+/** Warns that this edit's `find` text occurs more than once, so it may target the wrong spot. */
+function AmbiguityWarn({ n }: { n: number }) {
+  return (
+    <span className="diff-warn" tabIndex={0} aria-label="ambiguous match">
+      ⚠<span className="diff-why__pop">This text appears {n} times in the document — this targets the first match. Reject and re-ask if it's the wrong one.</span>
+    </span>
+  )
 }
 
 /** A fenced code block — shown as code, not prose. */
@@ -75,10 +86,10 @@ function InlineChange({ id, find, replace, reason, onAccept, onReject }: {
 }) {
   const segs = wordDiff(toPlainText(find), toPlainText(replace))
   const code = isInlineCode(find) || isInlineCode(replace)
-  const { isCurrent, ref } = useNav(id)
+  const { isCurrent, ref, ambiguousCount } = useNav(id)
   const cls = ['i-change', code && 'i-change--code', isCurrent && 'is-current'].filter(Boolean).join(' ')
   return (
-    <span ref={ref} className={cls}>{segNodes(segs)}<Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} /></span>
+    <span ref={ref} className={cls}>{segNodes(segs)}<Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} />{ambiguousCount ? <AmbiguityWarn n={ambiguousCount} /> : null}</span>
   )
 }
 
@@ -107,11 +118,11 @@ function BreakoutChange({ id, find, replace, reason, onAccept, onReject }: {
       </>
     )
   }
-  const { isCurrent, ref } = useNav(id)
+  const { isCurrent, ref, ambiguousCount } = useNav(id)
   return (
     <div ref={ref} className={isCurrent ? 'edit is-current' : 'edit'}>
       {rows}
-      <div className="edit__foot"><Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} /></div>
+      <div className="edit__foot"><Controls onAccept={onAccept} onReject={onReject} /><WhyHover reason={reason} />{ambiguousCount ? <AmbiguityWarn n={ambiguousCount} /> : null}</div>
     </div>
   )
 }
@@ -206,8 +217,15 @@ export function ReviewPanel({ text, changes, onAccept, onReject, onAcceptAll, on
   const idx = currentId ? orderedIds.indexOf(currentId) : -1
   const go = (delta: number) => setSelectedId(orderedIds[Math.min(n - 1, Math.max(0, idx + delta))] ?? null)
 
+  // safety net: flag any edit whose `find` still matches >1 place (e.g. doc changed post-propose)
+  const ambiguous = new Map<string, number>()
+  for (const c of changes) {
+    const count = countOccurrences(text, (c.payload as DocEditPayload).find)
+    if (count > 1) ambiguous.set(c.id, count)
+  }
+
   return (
-    <NavContext.Provider value={{ currentId, register }}>
+    <NavContext.Provider value={{ currentId, register, ambiguous }}>
       <div aria-label="diff-review" className="review">
         <div className="review__head">
           <span>{changes.length} proposed change{changes.length === 1 ? '' : 's'}</span>

@@ -42,6 +42,9 @@
   box-shadow: var(--shadow-md);
 }
 .diff-why:hover .diff-why__pop, .diff-why:focus-within .diff-why__pop, .diff-why:focus .diff-why__pop { display: block; }
+/* ambiguity warning (find matches >1 place) — reuses the hover popover */
+.diff-warn { position: relative; cursor: help; color: var(--warning); margin-left: 4px; vertical-align: middle; }
+.diff-warn:hover .diff-why__pop, .diff-warn:focus .diff-why__pop, .diff-warn:focus-within .diff-why__pop { display: block; }
 
 /* break-out change: set apart inside the paragraph, prose keeps its margin */
 .edit { display: block; margin: var(--space-2) 0; padding: var(--space-1) var(--space-3); border-left: 2px solid var(--border-strong); }

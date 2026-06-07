@@ -4,6 +4,7 @@ import type { DocEditorStore } from './docEditorStore'
 import type { ProposalStore } from '../../core/proposalStore'
 import { ReviewPanel } from './docEditorReview'
 import type { DocEditPayload } from './diff/types'
+import { countOccurrences } from './diff/blocks'
 import { MilkdownEditor } from './milkdownEditor'
 
 function DocEditorPanel({ store, proposals, saveImage }: { store: DocEditorStore; proposals: ProposalStore; saveImage?: (file: File) => Promise<string> }) {
@@ -57,6 +58,11 @@ export function createDocEditorModule(store: DocEditorStore, proposals: Proposal
           required: ['find', 'replace', 'reason'],
         },
         handler: (a: { find: string; replace: string; reason: string }) => {
+          // `find` must match exactly one place, or we can't know which occurrence the agent meant.
+          const matches = countOccurrences(store.getState().text, a.find)
+          if (!a.find) return { proposed: false, error: '`find` must not be empty.' }
+          if (matches === 0) return { proposed: false, error: 'No match: that `find` text is not in the document. Copy the exact current text.' }
+          if (matches > 1) return { proposed: false, error: `Ambiguous: \`find\` appears ${matches} times. Include surrounding text so it matches exactly one place.` }
           proposals.propose({
             moduleId: 'doc-editor',
             summary: `Replace "${a.find}" with "${a.replace}"`,

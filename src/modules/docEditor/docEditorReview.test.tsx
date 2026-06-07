@@ -163,6 +163,13 @@ describe('ReviewPanel', () => {
     expect((getByLabelText('Next change') as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('flags an edit whose find matches multiple places with an ambiguity warning', () => {
+    const { container } = render(
+      <ReviewPanel text={'cat and cat'} changes={[change('cat', 'dog', 'r')]} {...handlers} />,
+    )
+    expect(container.querySelector('.diff-warn')).toBeTruthy()
+  })
+
   it('lists a change whose find is gone as no-longer-matching', () => {
     render(<ReviewPanel text={'Nothing matches here.'} changes={[change('absent', 'x', 'why')]} {...handlers} />)
     expect(screen.getByText(/no longer matches/)).toBeTruthy()

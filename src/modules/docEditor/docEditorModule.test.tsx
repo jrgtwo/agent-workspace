@@ -24,6 +24,24 @@ describe('docEditorModule', () => {
     expect(pending[0].payload).toEqual({ find: 'INTRO', replace: 'BETTER INTRO' })
   })
 
+  it('rejects an ambiguous find (matches more than once) without enqueuing', async () => {
+    const store = new DocEditorStore('Untitled.md', 'cat and cat')
+    const proposals = new ProposalStore(() => 'c-1')
+    const propose = createDocEditorModule(store, proposals).tools.find((t) => t.name === 'propose_edit')!
+    const res = await propose.handler({ find: 'cat', replace: 'dog', reason: 'r' })
+    expect((res as { proposed: boolean }).proposed).toBe(false)
+    expect(proposals.forModule('doc-editor')).toHaveLength(0)
+  })
+
+  it('rejects a find with no match without enqueuing', async () => {
+    const store = new DocEditorStore('Untitled.md', 'hello')
+    const proposals = new ProposalStore(() => 'c-1')
+    const propose = createDocEditorModule(store, proposals).tools.find((t) => t.name === 'propose_edit')!
+    const res = await propose.handler({ find: 'absent', replace: 'x', reason: 'r' })
+    expect((res as { proposed: boolean }).proposed).toBe(false)
+    expect(proposals.forModule('doc-editor')).toHaveLength(0)
+  })
+
   it('renders the document text in the markdown editor when there are no pending changes', async () => {
     const store = new DocEditorStore('Untitled.md', 'hello')
     const proposals = new ProposalStore(() => 'c-1')

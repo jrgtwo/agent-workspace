@@ -8,6 +8,15 @@ const processor = unified().use(remarkParse).use(remarkGfm)
 
 export interface BlockSlice { source: string; start: number; end: number }
 
+/** Count non-overlapping occurrences of `find` in `text` (0 for an empty `find`). */
+export function countOccurrences(text: string, find: string): number {
+  if (!find) return 0
+  let n = 0
+  let i = text.indexOf(find)
+  while (i >= 0) { n += 1; i = text.indexOf(find, i + find.length) }
+  return n
+}
+
 /** Slice markdown into its top-level blocks using remark source offsets. */
 export function splitBlocks(markdown: string): BlockSlice[] {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */

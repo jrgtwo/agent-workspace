@@ -1,3 +1,4 @@
+import { LayoutStore } from '../core/layoutStore'
 import { PermissionBroker } from '../core/permissionBroker'
 import { MemoryStore } from '../core/memoryStore'
 import { ProposalStore } from '../core/proposalStore'
@@ -27,6 +28,7 @@ const SYSTEM_PROMPT =
 
 export interface AppServices {
   features: FeatureManifest[]
+  layoutStores: Map<string, LayoutStore>
   broker: PermissionBroker
   memory: MemoryStore
   engine: AgentEngine
@@ -94,5 +96,12 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
-  return { features: [notes, styleguide, settings], broker, memory, engine, docStore, library, proposals, theme, agentAccent }
+  const layoutStores = new Map<string, LayoutStore>()
+  for (const feature of [notes, styleguide, settings]) {
+    const ls = new LayoutStore(feature.layout)
+    await persistState(ls, storage.scope('layout'), feature.id)
+    layoutStores.set(feature.id, ls)
+  }
+
+  return { features: [notes, styleguide, settings], layoutStores, broker, memory, engine, docStore, library, proposals, theme, agentAccent }
 }

@@ -64,7 +64,7 @@ export interface WorkspaceModule {
 }
 
 export type LayoutNode =
-  | { type: 'panel'; moduleId: string; size?: number; collapsible?: boolean }
+  | { type: 'panel'; moduleId: string; size?: number; collapsible?: boolean; draggable?: boolean }
   | { type: 'split'; direction: 'horizontal' | 'vertical'; children: LayoutNode[]; size?: number }
 
 export interface FeatureManifest {

@@ -18,5 +18,5 @@ export default function App() {
       </div>
     )
   }
-  return <WorkspaceShell features={services.features} theme={services.theme} />
+  return <WorkspaceShell features={services.features} theme={services.theme} layoutStores={services.layoutStores} />
 }

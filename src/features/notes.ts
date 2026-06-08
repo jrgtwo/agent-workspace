@@ -37,11 +37,11 @@ export function createNotesFeature(deps: {
       type: 'split', direction: 'horizontal', children: [
         { type: 'panel', moduleId: 'document-explorer', size: 16 },
         { type: 'split', direction: 'vertical', size: 28, children: [
-          { type: 'panel', moduleId: 'ai-chat', size: 50 },
+          { type: 'panel', moduleId: 'ai-chat', size: 50, draggable: true },
           // { type: 'panel', moduleId: 'permission-prompt', size: 20 },
           // { type: 'panel', moduleId: 'memory-viewer', size: 30 },
         ] },
-        { type: 'panel', moduleId: 'doc-editor', size: 56 },
+        { type: 'panel', moduleId: 'doc-editor', size: 56, draggable: true },
       ],
     },
   }

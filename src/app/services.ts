@@ -11,6 +11,9 @@ import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createNotesFeature } from '../features/notes'
 import { createStyleGuideFeature } from '../features/styleguide'
 import { createSettingsFeature } from '../features/settings'
+import { createBoardFeature } from '../features/board'
+import { KanbanStore } from '../modules/kanban/kanbanStore'
+import { KanbanNavStore } from '../modules/kanban/kanbanNavStore'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { createStorage } from '../core/storage/storage'
 import { persistState, debounce } from '../core/storage/persistState'
@@ -37,6 +40,8 @@ export interface AppServices {
   proposals: ProposalStore
   theme: ThemeStore
   agentAccent: AgentAccentStore
+  kanban: KanbanStore
+  kanbanNav: KanbanNavStore
 }
 
 export interface CreateServicesOpts {
@@ -72,6 +77,14 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   await persistState(agentAccent, storage.scope('ai-chat'), 'agent-accent')
   applyTheme(theme.getState().theme) // set initial attribute before first paint
 
+  // Kanban: native board feature. Uses a collision-resistant id generator because its ids are
+  // persisted (the shared counter resets on reload and would otherwise collide with saved ids).
+  const kanbanId = () =>
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : genId()
+  const kanban = new KanbanStore(kanbanId)
+  const kanbanNav = new KanbanNavStore()
+  await persistState(kanban, storage.scope('kanban'), 'state')
+
   // Chat: custom hookup because the system prompt is re-seeded each launch.
   const chatScope = storage.scope('chat')
   const savedMessages = await chatScope.get<ChatMessage[]>('messages')
@@ -92,16 +105,17 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals, accent: agentAccent, saveImage })
   const styleguide = createStyleGuideFeature()
   const settings = createSettingsFeature({ theme, memory })
-  for (const feature of [notes, styleguide, settings]) {
+  const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine, broker, accent: agentAccent })
+  for (const feature of [notes, styleguide, settings, board]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings]) {
+  for (const feature of [notes, styleguide, settings, board]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings], layoutStores, broker, memory, engine, docStore, library, proposals, theme, agentAccent }
+  return { features: [notes, styleguide, settings, board], layoutStores, broker, memory, engine, docStore, library, proposals, theme, agentAccent, kanban, kanbanNav }
 }

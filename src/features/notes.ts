@@ -28,7 +28,7 @@ export function createNotesFeature(deps: {
   const chat = createAiChatModule(deps.engine, deps.broker, deps.accent)
   // const perms = createPermissionPromptModule(deps.broker)
   // const memory = createMemoryViewerModule(deps.memory)
-  const editor = createDocEditorModule(deps.docStore, deps.proposals, deps.saveImage)
+  const editor = createDocEditorModule(deps.docStore, deps.proposals, { saveImage: deps.saveImage, library: deps.library })
   return {
     id: 'notes', name: 'Notes', icon: '📝',
     modules: [explorer, chat, /*perms, memory,*/ editor],

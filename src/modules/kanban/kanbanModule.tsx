@@ -162,6 +162,33 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
           return { ok: true, message: `Moved "${card.title}" to ${col.name}.` }
         },
       },
+      {
+        name: 'create_board',
+        description:
+          'Create a new board (a project) with the default columns (Backlog, In Progress, Review, ' +
+          'Done). Does NOT navigate to it; the user opens it from the boards list.',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            description: { type: 'string', description: 'Optional subtitle shown under the board name.' },
+          },
+          required: ['name'],
+        },
+        permission: {
+          kind: 'write',
+          // Distinct from the open-board 'kanban-board' resource: this creates a NEW board.
+          resource: 'board:new',
+          locality: 'LOCAL',
+          describe: (a) => `Create a new board "${(a as { name?: string }).name}"?`,
+        },
+        handler: (a: { name: string; description?: string }) => {
+          const name = a.name?.trim()
+          if (!name) return { ok: false, error: '`name` is required.' }
+          const id = store.createProject({ name, description: a.description })
+          return { ok: true, id, message: `Created board "${name}".` }
+        },
+      },
     ],
   }
 }

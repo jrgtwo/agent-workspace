@@ -34,6 +34,6 @@ describe('Kanban board feature wiring', () => {
     const services = await createServices({ client: stubClient, backend: new MemoryBackend() })
     const board = services.features.find((f) => f.id === 'kanban')!
     const mod = board.modules.find((m) => m.id === 'kanban-board')!
-    expect(mod.tools.map((t) => t.name).sort()).toEqual(['create_card', 'list_board', 'move_card'])
+    expect(mod.tools.map((t) => t.name).sort()).toEqual(['create_board', 'create_card', 'list_board', 'move_card'])
   })
 })

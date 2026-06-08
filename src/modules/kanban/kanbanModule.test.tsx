@@ -96,6 +96,15 @@ describe('createKanbanModule', () => {
     expect(s.store.columnsForScope({ projectId: pid, parentCardId: res.id })).toHaveLength(4)
   })
 
+  it('create_board is a gated write that creates a new project with default columns', () => {
+    expect(s.tool('create_board').permission?.kind).toBe('write')
+    const res = s.tool('create_board').handler({ name: 'Home Reno' }) as { ok: boolean; id: string }
+    expect(res.ok).toBe(true)
+    const proj = s.store.getProject(res.id)!
+    expect(proj.name).toBe('Home Reno')
+    expect(s.store.columnsForScope({ projectId: res.id })).toHaveLength(4)
+  })
+
   it('move_card moves by title and reports ambiguity', () => {
     const pid = s.store.createProject({ name: 'P' })
     s.nav.openBoard({ projectId: pid })

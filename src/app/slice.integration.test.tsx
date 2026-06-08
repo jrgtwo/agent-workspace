@@ -56,7 +56,7 @@ describe('Notes slice — canonical scenario', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /allow/i })[0])
 
     // 2) propose_edit is NOT gated — no "Edit Untitled.md?" prompt. The loop runs to completion.
-    await waitFor(() => expect(services.engine.getState().busy).toBe(false))
+    await waitFor(() => expect(services.notesEngine.getState().busy).toBe(false))
     expect(await screen.findByText('Done — I tightened your intro.')).toBeInTheDocument()
     expect(screen.getByText('User prefers crisp, direct intros.')).toBeInTheDocument()
 

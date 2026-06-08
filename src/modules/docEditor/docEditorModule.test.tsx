@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { createDocEditorModule } from './docEditorModule'
 import { DocEditorStore } from './docEditorStore'
 import { ProposalStore } from '../../core/proposalStore'
+import { DocumentLibraryStore } from './documentLibraryStore'
+import { createStorage } from '../../core/storage/storage'
+import { MemoryBackend } from '../../core/storage/memoryBackend'
 
 describe('docEditorModule', () => {
   it('exposes a read-gated read_document and an ungated propose_edit that enqueues without mutating', async () => {
@@ -75,5 +78,35 @@ describe('docEditorModule', () => {
     await userEvent.click(screen.getByRole('button', { name: /reject this change/i }))
     expect(store.getState().text).toBe('INTRO here')
     expect((await screen.findByLabelText('document')).textContent).toContain('INTRO here')
+  })
+
+  it('create_document is a gated write that creates and activates a new document', async () => {
+    const store = new DocEditorStore('Untitled.md', '')
+    const proposals = new ProposalStore(() => 'c-1')
+    let n = 0
+    const library = new DocumentLibraryStore(
+      store,
+      createStorage(new MemoryBackend()).scope('doc-editor'),
+      () => `d-${++n}`,
+    )
+    await library.init()
+    const mod = createDocEditorModule(store, proposals, { library })
+    const create = mod.tools.find((t) => t.name === 'create_document')!
+    expect(create.permission?.kind).toBe('write')
+    expect(create.permission?.locality).toBe('LOCAL')
+
+    const before = library.getState().docs.length
+    const res = await create.handler({ name: 'Plan.md' })
+    expect(res).toMatchObject({ created: true, name: 'Plan.md' })
+    expect(library.getState().docs.length).toBe(before + 1)
+    const { docs, activeId } = library.getState()
+    expect(docs.find((d) => d.id === activeId)!.name).toBe('Plan.md')
+  })
+
+  it('omits create_document when no library is provided', () => {
+    const store = new DocEditorStore('Untitled.md', '')
+    const proposals = new ProposalStore(() => 'c-1')
+    const mod = createDocEditorModule(store, proposals)
+    expect(mod.tools.find((t) => t.name === 'create_document')).toBeUndefined()
   })
 })

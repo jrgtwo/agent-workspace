@@ -15,7 +15,7 @@ export function createBoardFeature(deps: {
   accent: AgentAccentStore
 }): FeatureManifest {
   const board = createKanbanModule(deps.store, deps.nav)
-  const chat = createAiChatModule(deps.engine, deps.broker, deps.accent) // reuse the global chat
+  const chat = createAiChatModule(deps.engine, deps.broker, deps.accent) // the Board feature's own agent
   return {
     id: 'kanban',
     name: 'Kanban',

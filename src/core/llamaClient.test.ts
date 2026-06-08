@@ -67,3 +67,24 @@ describe('LlamaClient', () => {
       .rejects.toThrow(/Local model not reachable/)
   })
 })
+
+describe('LlamaClient abort', () => {
+  it('passes the AbortSignal through to fetch', async () => {
+    const controller = new AbortController()
+    const fakeFetch = vi.fn(async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"hi"}}]}\n'))
+          c.enqueue(new TextEncoder().encode('data: [DONE]\n'))
+          c.close()
+        },
+      })
+      return { ok: true, status: 200, body: stream } as unknown as Response
+    })
+    const client = new LlamaClient('/llama/v1', 'local', fakeFetch as unknown as typeof fetch)
+    await client.chat([{ role: 'user', content: 'hi' }], [], () => {}, controller.signal)
+    expect(fakeFetch).toHaveBeenCalledTimes(1)
+    const opts = (fakeFetch.mock.calls[0] as unknown as [string, RequestInit])[1]
+    expect(opts.signal).toBe(controller.signal)
+  })
+})

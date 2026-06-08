@@ -5,6 +5,7 @@ import { LlamaClient } from '../core/llamaClient'
 import { Registry } from '../core/registry'
 import { AgentEngine } from '../core/agentEngine'
 import { ThemeStore, applyTheme } from '../core/themeStore'
+import { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
 import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createNotesFeature } from '../features/notes'
 import { createStyleGuideFeature } from '../features/styleguide'
@@ -33,6 +34,7 @@ export interface AppServices {
   library: DocumentLibraryStore
   proposals: ProposalStore
   theme: ThemeStore
+  agentAccent: AgentAccentStore
 }
 
 export interface CreateServicesOpts {
@@ -48,6 +50,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const memory = new MemoryStore(genId)
   const proposals = new ProposalStore(genId)
   const theme = new ThemeStore()
+  const agentAccent = new AgentAccentStore()
   const docStore = new DocEditorStore('Untitled.md', '')
   const registry = new Registry()
 
@@ -64,6 +67,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   await library.init()
   await persistState(memory, storage.scope('memory'), 'entries')
   await persistState(theme, storage.scope('theme'), 'state')
+  await persistState(agentAccent, storage.scope('ai-chat'), 'agent-accent')
   applyTheme(theme.getState().theme) // set initial attribute before first paint
 
   // Chat: custom hookup because the system prompt is re-seeded each launch.
@@ -83,12 +87,12 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     return id
   }
 
-  const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals, saveImage })
+  const notes = createNotesFeature({ docStore, library, engine, broker, memory, proposals, accent: agentAccent, saveImage })
   const styleguide = createStyleGuideFeature()
   const settings = createSettingsFeature({ theme, memory })
   for (const feature of [notes, styleguide, settings]) {
     for (const mod of feature.modules) registry.register(mod.tools)
   }
 
-  return { features: [notes, styleguide, settings], broker, memory, engine, docStore, library, proposals, theme }
+  return { features: [notes, styleguide, settings], broker, memory, engine, docStore, library, proposals, theme, agentAccent }
 }

@@ -110,3 +110,23 @@ describe('AgentEngine', () => {
     expect(captured).toEqual(['ai-chat'])
   })
 })
+
+describe('AgentEngine stop', () => {
+  it('aborts an in-flight run, clears busy, and resolves without throwing', async () => {
+    const client = {
+      chat: (_m: unknown, _t: unknown, _onTok: unknown, signal?: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            const err = new Error('aborted'); err.name = 'AbortError'; reject(err)
+          })
+        }),
+    }
+    const engine = new AgentEngine(client as never, new Registry(), new PermissionBroker(() => 'p'))
+    const runPromise = engine.run('hello')
+    await Promise.resolve()
+    engine.stop()
+    await expect(runPromise).resolves.toBe('')
+    expect(engine.getState().busy).toBe(false)
+    expect(engine.getState().streaming).toBe('')
+  })
+})

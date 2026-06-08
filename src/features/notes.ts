@@ -2,8 +2,11 @@ import type { FeatureManifest } from '../core/types'
 import { createDocEditorModule } from '../modules/docEditor/docEditorModule'
 import { createDocumentExplorerModule } from '../modules/docEditor/documentExplorerModule'
 import { createAiChatModule } from '../modules/aiChat/aiChatModule'
-import { createPermissionPromptModule } from '../modules/permissionPrompt/permissionPromptModule'
-import { createMemoryViewerModule } from '../modules/memoryViewer/memoryViewerModule'
+import type { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
+// Permission-prompt and memory-viewer modules are currently commented out of the
+// Notes layout (see below); imports disabled to keep the build clean until re-added.
+// import { createPermissionPromptModule } from '../modules/permissionPrompt/permissionPromptModule'
+// import { createMemoryViewerModule } from '../modules/memoryViewer/memoryViewerModule'
 import type { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import type { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import type { AgentEngine } from '../core/agentEngine'
@@ -18,10 +21,11 @@ export function createNotesFeature(deps: {
   broker: PermissionBroker
   memory: MemoryStore
   proposals: ProposalStore
+  accent: AgentAccentStore
   saveImage?: (file: File) => Promise<string>
 }): FeatureManifest {
   const explorer = createDocumentExplorerModule(deps.library)
-  const chat = createAiChatModule(deps.engine, deps.broker)
+  const chat = createAiChatModule(deps.engine, deps.broker, deps.accent)
   // const perms = createPermissionPromptModule(deps.broker)
   // const memory = createMemoryViewerModule(deps.memory)
   const editor = createDocEditorModule(deps.docStore, deps.proposals, deps.saveImage)

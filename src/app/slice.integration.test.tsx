@@ -5,6 +5,19 @@ import { MemoryBackend } from '../core/storage/memoryBackend'
 import { WorkspaceShell } from '../shell/WorkspaceShell'
 import type { ChatResult } from '../core/llamaClient'
 
+// Milkdown can't run meaningfully in jsdom — stub the composer so we can drive it with fireEvent.
+vi.mock('../modules/aiChat/composer/ChatComposer', () => ({
+  ChatComposer: ({ onSend, busy }: { onSend: (s: string) => void; onStop: () => void; busy: boolean }) => (
+    <div>
+      <input placeholder="Ask for writing help…" data-testid="chat-input" />
+      <button onClick={() => {
+        const el = document.querySelector<HTMLInputElement>('[data-testid="chat-input"]')
+        if (el) onSend(el.value)
+      }} disabled={busy}>Send</button>
+    </div>
+  ),
+}))
+
 // Scripted model: 1) read the doc, 2) propose an edit, 3) remember a preference, 4) final answer.
 function scriptedClient(scripts: ChatResult[]) {
   let i = 0

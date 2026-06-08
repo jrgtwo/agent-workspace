@@ -13,6 +13,7 @@ export class AgentEngine extends Emitter<AgentState> {
   private registry: Registry
   private broker: PermissionBroker
   readonly surfaceId: string
+  private controller: AbortController | null = null
 
   constructor(client: Pick<LlamaClient, 'chat'>, registry: Registry, broker: PermissionBroker, surfaceId = 'agent') {
     super()
@@ -39,6 +40,11 @@ export class AgentEngine extends Emitter<AgentState> {
     this.set({ messages })
   }
 
+  /** Abort the in-flight run (if any). The run resolves to '' without error. */
+  stop(): void {
+    this.controller?.abort()
+  }
+
   private set(patch: Partial<AgentState>): void {
     this.state = { ...this.state, ...patch }
     this.notify()
@@ -47,6 +53,8 @@ export class AgentEngine extends Emitter<AgentState> {
   async run(userText: string): Promise<string> {
     const messages: ChatMessage[] = [...this.state.messages, { role: 'user', content: userText }]
     this.set({ messages, busy: true, streaming: '' })
+    const controller = new AbortController()
+    this.controller = controller
 
     try {
       for (let iter = 0; iter < MAX_ITERS; iter++) {
@@ -54,7 +62,7 @@ export class AgentEngine extends Emitter<AgentState> {
         const result = await this.client.chat(this.state.messages, this.registry.all(), (tok) => {
           streamed += tok
           this.set({ streaming: streamed })
-        })
+        }, controller.signal)
 
         const assistantMsg: ChatMessage = {
           role: 'assistant',
@@ -75,7 +83,12 @@ export class AgentEngine extends Emitter<AgentState> {
         }
       }
       return ''
+    } catch (e) {
+      // A user-initiated stop aborts the model call; resolve quietly instead of surfacing an error.
+      if (controller.signal.aborted || (e as Error).name === 'AbortError') return ''
+      throw e
     } finally {
+      this.controller = null
       // Always clear busy/streaming, even if the model call throws — otherwise one
       // failure wedges the UI (Send stays disabled, no further requests fire).
       this.set({ busy: false, streaming: '' })

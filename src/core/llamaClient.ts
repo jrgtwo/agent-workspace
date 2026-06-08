@@ -26,6 +26,7 @@ export class LlamaClient {
     messages: ChatMessage[],
     tools: ToolDef[],
     onToken: (t: string) => void,
+    signal?: AbortSignal,
   ): Promise<ChatResult> {
     let res: Response
     // Detach from `this`: the native browser `fetch` throws "Illegal invocation" when
@@ -35,6 +36,7 @@ export class LlamaClient {
       res = await doFetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal,
         body: JSON.stringify({
           model: this.model,
           stream: true,
@@ -43,6 +45,7 @@ export class LlamaClient {
         }),
       })
     } catch (e) {
+      if ((e as Error).name === 'AbortError') throw e
       throw new Error('Local model not reachable. Is llama-server running on localhost?')
     }
     if (!res.ok || !res.body) {

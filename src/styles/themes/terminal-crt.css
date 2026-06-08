@@ -1,7 +1,73 @@
 /* src/styles/themes/terminal-crt.css
-   Same palette as Terminal (:root), with CRT effects turned up. */
+   Bespoke "heavy CRT analog" theme: brighter phosphor-green palette on lifted green-black
+   surfaces, with CRT effects (scanlines, vignette, accent bloom) turned up and per-theme
+   flourishes (glowing/enlarged panel headers + a global phosphor bloom). The base Terminal
+   palette (:root) provides any tokens not overridden here. */
 [data-theme="terminal-crt"] {
-  --glow-accent: 0 0 8px rgba(111, 207, 142, 0.55);
-  --scanline-opacity: 0.16;
-  --vignette-opacity: 0.5;
+  /* surfaces / structure — green-tinted, lifted from the muted base */
+  --bg: #0e1411;
+  --surface: #141b16;
+  --surface-2: #1a241d;
+  --surface-3: #223226;
+  --border: #243a2c;
+  --border-strong: #33614b;
+
+  /* text — phosphor-tinted */
+  --text: #c4ecd3;
+  --text-strong: #eafff2;
+  --text-muted: #74a489;
+
+  /* accent — bright phosphor green */
+  --accent: #54ff9f;
+  --accent-strong: #9bffc6;
+  --accent-fg: #032b13;
+  --accent-soft: rgba(84, 255, 159, 0.12);
+
+  /* status */
+  --success: #54ff9f; --success-soft: rgba(84,255,159,.12); --success-fg: #032b13;
+  --danger:  #ff9b9b; --danger-soft:  rgba(255,120,120,.16); --danger-fg: #2a0f0f;
+  --warning: #e6c66a; --warning-soft: rgba(230,198,106,.14); --warning-fg: #241c00;
+  --info:    #7fe9e0; --info-soft:    rgba(127,233,224,.12); --info-fg: #04222a;
+
+  /* syntax / diff — brightened for the dark green ground */
+  --syntax-keyword: #c9a6ff;
+  --syntax-fn:      #8fe9ff;
+  --syntax-string:  #e6d08a;
+  --syntax-punc:    #74a489;
+  --syntax-accent:  #54ff9f;
+  --diff-add-fg: #7dffb0; --diff-add-bg: rgba(84,255,159,.16);
+  --diff-del-fg: #ff9b9b; --diff-del-bg: rgba(255,120,120,.16);
+
+  /* depth — slightly deeper to sit under the scanlines */
+  --shadow-md: 0 8px 26px -8px rgba(0,0,0,.7), 0 2px 6px -2px rgba(0,0,0,.6);
+
+  /* EFFECT tokens — CRT turned up */
+  --glow-accent: 0 0 9px rgba(84, 255, 159, 0.6);
+  --scanline-opacity: 0.2;
+  --vignette-opacity: 0.55;
+
+  /* per-theme: faint desaturated green wash for panel/section header strips */
+  --head-wash: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, var(--surface-2)), var(--surface-2));
+}
+
+/* ── Bespoke per-theme flourishes (scoped; other themes untouched) ───────────── */
+
+/* Enlarged, glowing panel headers with a green wash */
+[data-theme="terminal-crt"] .panel-frame__header {
+  padding: var(--space-3) var(--space-3);
+  background: var(--head-wash);
+}
+[data-theme="terminal-crt"] .panel-frame__header > span:first-child {
+  font-family: var(--mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-shadow: var(--glow-accent);
+}
+
+/* Global phosphor bloom: every glyph in a panel glows softly in its own color.
+   (The chat sets its own per-card bloom; this covers the rest — explorer, doc, etc.) */
+[data-theme="terminal-crt"] .panel-frame__body {
+  text-shadow: 0 0 5px color-mix(in srgb, currentColor 26%, transparent);
 }

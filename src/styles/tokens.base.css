@@ -54,7 +54,8 @@ body { margin: 0; }
    At 0 opacity (Terminal / Midnight) they are invisible; Terminal CRT turns them up. */
 #root::after {
   content: ''; position: fixed; inset: 0; pointer-events: none; z-index: var(--z-overlay);
-  background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,.5) 3px);
+  /* Default is the CRT scanline; themes may override --scanline-bg (e.g. a dot-matrix grid). */
+  background: var(--scanline-bg, repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,.5) 3px));
   opacity: var(--scanline-opacity, 0);
   transition: opacity var(--transition);
 }
@@ -62,5 +63,12 @@ body { margin: 0; }
   content: ''; position: fixed; inset: 0; pointer-events: none; z-index: var(--z-overlay);
   box-shadow: inset 0 0 120px 28px rgba(0,0,0,.6);
   opacity: var(--vignette-opacity, 0);
+  transition: opacity var(--transition);
+}
+/* Optional "aura" wash over everything (e.g. a synthwave horizon glow). Off by default. */
+body::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: var(--z-overlay);
+  background: var(--aura, none);
+  opacity: var(--aura-opacity, 0);
   transition: opacity var(--transition);
 }

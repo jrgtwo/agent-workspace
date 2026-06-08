@@ -1,0 +1,62 @@
+/* src/styles/themes/synthwave.css
+   Bespoke "Synthwave" dark theme: neon magenta accent + cyan agent on deep indigo. CRT effects
+   on (scanlines, vignette, accent bloom) plus a faint magenta "horizon" aura rising from the
+   bottom (the classic sunset-grid glow). */
+[data-theme="synthwave"] {
+  --bg: #0d0a1f;
+  --surface: #150f2c;
+  --surface-2: #1c1438;
+  --surface-3: #271a4d;
+  --border: #2a1f52;
+  --border-strong: #46327f;
+
+  --text: #e6d9ff;
+  --text-strong: #fdf2ff;
+  --text-muted: #9a86c8;
+
+  --accent: #ff5dbb;
+  --accent-strong: #ff9bd8;
+  --accent-fg: #2a0a1d;
+  --accent-soft: rgba(255, 93, 187, 0.12);
+
+  --success: #7dffd6; --success-soft: rgba(125,255,214,.14); --success-fg: #04221a;
+  --danger:  #ff7da9; --danger-soft:  rgba(255,93,150,.16);  --danger-fg: #2a0a1d;
+  --warning: #ffd36a; --warning-soft: rgba(255,211,106,.14);
+  --info:    #5de1ff; --info-soft:    rgba(93,225,255,.12);
+
+  --syntax-keyword: #c9a6ff;
+  --syntax-fn:      #5de1ff;
+  --syntax-string:  #ffd36a;
+  --syntax-punc:    #9a86c8;
+  --syntax-accent:  #ff5dbb;
+  --diff-add-fg: #7dffd6; --diff-add-bg: rgba(93,225,255,.14);
+  --diff-del-fg: #ff7da9; --diff-del-bg: rgba(255,93,150,.16);
+
+  /* EFFECT tokens — CRT on, magenta glow, + bottom horizon aura */
+  --glow-accent: 0 0 9px rgba(255, 93, 187, 0.6);
+  --scanline-opacity: 0.16;
+  --vignette-opacity: 0.5;
+  --aura: radial-gradient(ellipse at 50% 120%, rgba(255,93,187,.18) 0%, transparent 45%);
+  --aura-opacity: 1;
+
+  --head-wash: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), var(--surface-2));
+}
+
+/* enlarged, glowing mono headers with the magenta wash */
+[data-theme="synthwave"] .panel-frame__header {
+  padding: var(--space-3) var(--space-3);
+  background: var(--head-wash);
+}
+[data-theme="synthwave"] .panel-frame__header > span:first-child {
+  font-family: var(--mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-shadow: var(--glow-accent);
+}
+
+/* global phosphor bloom (dark theme) */
+[data-theme="synthwave"] .panel-frame__body {
+  text-shadow: 0 0 5px color-mix(in srgb, currentColor 22%, transparent);
+}

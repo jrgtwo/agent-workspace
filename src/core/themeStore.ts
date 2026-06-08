@@ -1,14 +1,17 @@
 import { Emitter } from './emitter'
 
-export const THEME_IDS = ['terminal', 'terminal-crt', 'midnight'] as const
+export const THEME_IDS = ['terminal', 'terminal-crt', 'midnight', 'faded-amber', 'gameboy', 'synthwave'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
-export const DEFAULT_THEME: ThemeId = 'terminal'
+export const DEFAULT_THEME: ThemeId = 'terminal-crt'
 
 export interface ThemeMeta { id: ThemeId; label: string }
 export const THEMES: ThemeMeta[] = [
   { id: 'terminal', label: 'Terminal' },
   { id: 'terminal-crt', label: 'Terminal CRT' },
   { id: 'midnight', label: 'Midnight' },
+  { id: 'faded-amber', label: 'Faded Amber' },
+  { id: 'gameboy', label: 'Game Boy' },
+  { id: 'synthwave', label: 'Synthwave' },
 ]
 
 export interface ThemeState { theme: ThemeId }

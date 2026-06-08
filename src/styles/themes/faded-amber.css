@@ -1,0 +1,61 @@
+/* src/styles/themes/faded-amber.css
+   Bespoke "Faded Amber" light theme: warm aged-paper ground, dark amber ink, burnt-amber
+   accent + a cool teal agent accent. A light theme, so CRT glow/vignette stay off; instead a
+   faint dot-matrix LCD grid (via --scanline-bg) gives it texture. */
+[data-theme="faded-amber"] {
+  --bg: #e7dcc2;
+  --surface: #f1e9d7;
+  --surface-2: #e3d6b6;
+  --surface-3: #d8c8a2;
+  --border: #cdbd95;
+  --border-strong: #b29c66;
+
+  --text: #473a20;
+  --text-strong: #2b2207;
+  --text-muted: #8a7a52;
+
+  --accent: #9a6a1c;
+  --accent-strong: #7d5413;
+  --accent-fg: #fbf3df;
+  --accent-soft: rgba(154, 106, 28, 0.12);
+
+  --success: #557a2a; --success-soft: rgba(95,122,46,.18); --success-fg: #fbf3df;
+  --danger:  #9a4a32; --danger-soft:  rgba(154,74,50,.16);  --danger-fg: #fbf3df;
+  --warning: #9a6a1c; --warning-soft: rgba(154,106,28,.14);
+  --info:    #3f7d72; --info-soft:    rgba(63,125,114,.12);
+
+  --syntax-keyword: #7d4a8a;
+  --syntax-fn:      #2f6f86;
+  --syntax-string:  #8a6a1c;
+  --syntax-punc:    #8a7a52;
+  --syntax-accent:  #9a6a1c;
+  --diff-add-fg: #557a2a; --diff-add-bg: rgba(95,122,46,.18);
+  --diff-del-fg: #9a4a32; --diff-del-bg: rgba(154,74,50,.16);
+
+  /* faint dot-matrix LCD grid (both directions); glow/vignette stay off for a light ground */
+  --scanline-bg:
+    repeating-linear-gradient(0deg, rgba(70,50,10,.06) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(70,50,10,.06) 0 1px, transparent 1px 3px);
+  --scanline-opacity: 1;
+
+  --head-wash: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), var(--surface-2));
+}
+
+/* enlarged mono headers with the warm wash (no glow — light theme) */
+[data-theme="faded-amber"] .panel-frame__header {
+  padding: var(--space-3) var(--space-3);
+  background: var(--head-wash);
+}
+[data-theme="faded-amber"] .panel-frame__header > span:first-child {
+  font-family: var(--mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent-strong);
+}
+
+/* neutralize the chat's CRT bloom/glow for the light ground → soft paper shadow instead */
+[data-theme="faded-amber"] .chat-msg__card {
+  text-shadow: none;
+  box-shadow: var(--shadow-sm);
+}

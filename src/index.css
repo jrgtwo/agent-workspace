@@ -4,4 +4,7 @@
 @import './styles/tokens.semantic.css';
 @import './styles/themes/terminal-crt.css';
 @import './styles/themes/midnight.css';
+@import './styles/themes/faded-amber.css';
+@import './styles/themes/gameboy.css';
+@import './styles/themes/synthwave.css';
 @import './styles/components.css';

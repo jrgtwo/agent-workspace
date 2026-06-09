@@ -23,4 +23,6 @@ export interface FeatureAgent {
   title: string
   description: string
   registry: Registry
+  /** Optional live-state snapshot, injected into the delegated subagent's system prompt each run. */
+  contextProvider?: () => string
 }

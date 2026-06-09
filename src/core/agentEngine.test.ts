@@ -3,7 +3,7 @@ import { AgentEngine } from './agentEngine'
 import { Registry } from './registry'
 import { PermissionBroker } from './permissionBroker'
 import type { ChatResult } from './llamaClient'
-import type { ToolDef } from './types'
+import type { ChatMessage, ToolDef } from './types'
 
 // A fake LlamaClient that returns scripted results per call.
 function fakeClient(scripts: ChatResult[]) {
@@ -122,6 +122,63 @@ it('respects a custom maxIters (stops after the given number of tool-call rounds
   const engine = new AgentEngine(client, registry, new PermissionBroker(() => 'p'), 'test', 2)
   await engine.run('go')
   expect(calls).toBe(2) // capped at 2 rounds, not the default 5
+})
+
+describe('AgentEngine steering', () => {
+  it('returns an instructive error naming the available tools when the model calls an unknown tool', async () => {
+    const registry = new Registry()
+    registry.register([{ name: 'delegate', description: 'd', parameters: { type: 'object', properties: {} }, handler: () => 'ok' }])
+    const client = fakeClient([
+      { content: '', toolCalls: [{ id: 'c1', name: 'create_card', arguments: '{}' }] },
+      { content: 'sorry, delegating instead', toolCalls: [] },
+    ])
+    const engine = new AgentEngine(client, registry, new PermissionBroker(() => 'p'))
+
+    await engine.run('go')
+
+    const toolMsg = engine.getState().messages.find((m) => m.role === 'tool')
+    expect(toolMsg?.content).toMatch(/unknown tool: create_card/i)
+    // It must tell the model what it CAN call, so it can recover instead of guessing again.
+    expect(toolMsg?.content).toContain('delegate')
+  })
+
+  it('stops looping when the model repeats the same tool call without making progress', async () => {
+    let calls = 0
+    const client = {
+      chat: async () => {
+        calls++
+        return { content: 'let me try again', toolCalls: [{ id: `c${calls}`, name: 'noop', arguments: '{}' }] }
+      },
+    }
+    const registry = new Registry()
+    registry.register([{ name: 'noop', description: 'no-op', parameters: { type: 'object', properties: {} }, handler: () => ({ ok: true }) }])
+    const engine = new AgentEngine(client as never, registry, new PermissionBroker(() => 'p'), 'test', 25)
+
+    const answer = await engine.run('go')
+
+    // Breaks well before the 25-iteration cap instead of spinning.
+    expect(calls).toBeLessThan(5)
+    expect(answer).toMatch(/repeat|same action|stopped/i)
+    expect(engine.getState().busy).toBe(false)
+  })
+
+  it('appends live context-provider output to the system prompt sent to the model, without bloating history', async () => {
+    const seen: ChatMessage[][] = []
+    const client = {
+      chat: async (msgs: ChatMessage[]) => { seen.push(msgs); return { content: 'ok', toolCalls: [] } },
+    }
+    const engine = new AgentEngine(client as never, new Registry(), new PermissionBroker(() => 'p'))
+    engine.seedSystem('BASE PROMPT')
+    engine.setContextProvider(() => 'LIVE STATE: open board = Movement')
+
+    await engine.run('hi')
+
+    const sentSystem = seen[0].find((m) => m.role === 'system')
+    expect(sentSystem?.content).toContain('BASE PROMPT')
+    expect(sentSystem?.content).toContain('LIVE STATE: open board = Movement')
+    // The stored system message stays clean — the live state is injected per-run, not persisted.
+    expect(engine.getState().messages.find((m) => m.role === 'system')?.content).toBe('BASE PROMPT')
+  })
 })
 
 describe('AgentEngine stop', () => {

@@ -84,6 +84,8 @@ export function createOrchestratorTools(deps: OrchestratorToolDeps): ToolDef[] {
         if (stepId) plan.updateStep(stepId, { status: 'running' })
         const sub = new AgentEngine(client, feature.registry, broker, surfaceId, subagentMaxIters)
         sub.seedSystem(SUBAGENT_SYSTEM)
+        // Give the subagent the same live state the feature's own agent sees (open board, etc.).
+        if (feature.contextProvider) sub.setContextProvider(feature.contextProvider)
         try {
           const result = await sub.run(a.task)
           if (stepId) plan.updateStep(stepId, { status: 'done', result })

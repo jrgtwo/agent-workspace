@@ -18,9 +18,12 @@ import { createOrchestratorFeature } from '../features/orchestrator'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
 import { OrchestratorPlanStore } from '../modules/orchestrator/planStore'
 import { createOrchestratorTools, type FeatureAgentRegistry } from '../modules/orchestrator/orchestratorTools'
+import { describeOrchestratorContext } from '../modules/orchestrator/context'
 import { KanbanStore } from '../modules/kanban/kanbanStore'
 import { KanbanNavStore } from '../modules/kanban/kanbanNavStore'
+import { describeKanbanContext } from '../modules/kanban/context'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
+import { describeNotesContext } from '../modules/docEditor/context'
 import { createStorage } from '../core/storage/storage'
 import { persistState } from '../core/storage/persistState'
 import type { StorageBackend } from '../core/storage/types'
@@ -33,23 +36,31 @@ const NOTES_PROMPT =
   'You are a local, privacy-first writing assistant embedded in a notes app. ' +
   "You help with the user's documents: read and edit the active document, create new documents, " +
   'and remember durable facts — but every read/write/create requires explicit user permission via ' +
-  'tools. Prefer reading the document before editing. When you learn a durable preference about the ' +
-  'user, call the remember tool. To add new content to a document (or write into an empty one), use ' +
-  'append_document; use propose_edit only to change existing text.'
+  'tools. Your tools are: read_document, propose_edit, append_document, create_document, remember — ' +
+  'you have no others. Prefer reading the document before editing. To add new content to a document ' +
+  '(or write into an empty one), use append_document; use propose_edit only to change existing text. ' +
+  'If the user denies an action, stop and explain — do not retry the same action. When you learn a ' +
+  'durable preference about the user, call the remember tool.'
 
 const BOARD_PROMPT =
   'You are a local, privacy-first assistant embedded in a kanban board app. ' +
   'You help the user manage the currently-open board: list it, create and move cards, and create new ' +
-  'boards — every action requires explicit user permission via tools. Use list_board to see column ' +
-  'names before creating or moving cards. When you learn a durable preference about the user, call ' +
-  'the remember tool.'
+  'boards — every action requires explicit user permission via tools. Your tools are: list_board, ' +
+  'create_card, move_card, create_board, open_board, remember — you have no others. Use list_board to ' +
+  'see column names before creating or moving cards. To add cards inside a sub-board, call open_board ' +
+  'with subboard:"<title>" first. If the user denies an action, stop and explain — do not retry the ' +
+  'same action. When you learn a durable preference about the user, call the remember tool.'
 
 const ORCHESTRATOR_PROMPT =
   'You are the orchestrator: a helpful, conversational assistant that coordinates work across the app. ' +
-  'When a request needs action, keep a plan with update_plan and carry out each step with delegate, which ' +
-  'runs a focused subagent that has only that feature\'s tools and reports back. Pass any context a ' +
-  'subagent needs inside its task (subagents cannot see this conversation). Just chat normally when no ' +
-  'action is needed. When you learn a durable preference about the user, call remember.'
+  'You have NO feature tools of your own — your ONLY tools are update_plan, delegate, and remember. ' +
+  'To do anything inside a feature (notes, kanban, …) you MUST delegate; never attempt feature actions ' +
+  'yourself. When a request needs action, keep a plan with update_plan and carry out each step with ' +
+  'delegate, which runs a focused subagent that has only that feature\'s tools and reports back. Pass ' +
+  'any context a subagent needs inside its task (subagents cannot see this conversation). If a delegate ' +
+  'fails, do NOT silently retry the same task — report what happened and ask the user how to proceed. ' +
+  'Just chat normally when no action is needed. When you learn a durable preference about the user, ' +
+  'call remember.'
 
 export interface AppServices {
   features: FeatureManifest[]
@@ -113,6 +124,11 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const kanbanNav = new KanbanNavStore()
   await persistState(kanban, storage.scope('kanban'), 'state')
 
+  // Inject live state into each feature agent's system prompt every run, so it knows the active
+  // document / open board (and which sub-boards exist) instead of guessing.
+  notesEngine.setContextProvider(() => describeNotesContext(library, docStore))
+  boardEngine.setContextProvider(() => describeKanbanContext(kanban, kanbanNav))
+
   // Image blobs are stored locally in 'doc-images' scope (privacy: never uploaded).
   const imageScope = storage.scope('doc-images')
   const saveImage = async (file: File): Promise<string> => {
@@ -136,17 +152,19 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
-  const orchestratorEngine = new AgentEngine(client, orchestratorRegistry, broker, 'orchestrator', 25)
+  const orchestratorEngine = new AgentEngine(client, orchestratorRegistry, broker, 'orchestrator', 10)
 
   const featureAgents: FeatureAgentRegistry = new Map([
-    ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry }],
-    ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry }],
+    ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry, contextProvider: () => describeNotesContext(library, docStore) }],
+    ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, contextProvider: () => describeKanbanContext(kanban, kanbanNav) }],
   ])
 
   const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), genId)
   await sessionStore.init()
   const planStore = new OrchestratorPlanStore(storage.scope('orchestrator-plan'), kanbanId)
   await planStore.init(sessionStore.getState().activeId)
+
+  orchestratorEngine.setContextProvider(() => describeOrchestratorContext(planStore, featureAgents))
 
   const orchestratorTools = createOrchestratorTools({
     plan: planStore, featureAgents, client, broker, surfaceId: 'orchestrator',

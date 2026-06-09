@@ -59,6 +59,24 @@ describe('orchestrator tools', () => {
     expect(plan.getState().steps[0]).toMatchObject({ status: 'done' })
   })
 
+  it('passes the feature\'s live context provider to the delegated subagent', async () => {
+    const plan = makePlan(); await plan.init('A')
+    const registry = new Registry()
+    registry.register([{ name: 'do_work', description: 'w', parameters: { type: 'object', properties: {} }, handler: () => ({ ok: true }) }])
+    const featureAgents: FeatureAgentRegistry = new Map([
+      ['widget', { id: 'widget', title: 'Widget', description: 'd', registry, contextProvider: () => 'LIVE WIDGET STATE' }],
+    ])
+    const seen: { role: string; content: string }[][] = []
+    const client = { chat: async (msgs: { role: string; content: string }[]) => { seen.push(msgs); return { content: 'done', toolCalls: [] } } }
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const delegate = tools.find((t) => t.name === 'delegate')!
+
+    await delegate.handler({ targetFeature: 'widget', task: 'do it' })
+
+    const sys = seen[0].find((m) => m.role === 'system')
+    expect(sys?.content).toContain('LIVE WIDGET STATE')
+  })
+
   it('delegate to an unknown feature returns a friendly error and does not throw', async () => {
     const plan = makePlan(); await plan.init('A')
     const tools = createOrchestratorTools({ plan, featureAgents: new Map(), client: { chat: async () => ({ content: '', toolCalls: [] }) }, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })

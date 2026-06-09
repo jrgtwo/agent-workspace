@@ -4,6 +4,8 @@ export interface StorageBackend {
   set(ns: string, key: string, value: unknown): Promise<void>
   delete(ns: string, key: string): Promise<void>
   keys(ns: string): Promise<string[]>
+  /** Erase ALL data across every namespace (used by "clear all data"). */
+  clear(): Promise<void>
 }
 
 // Module-facing handle, already bound to a namespace.
@@ -16,4 +18,6 @@ export interface ScopedStore {
 
 export interface Storage {
   scope(namespace: string): ScopedStore
+  /** Erase ALL data across every namespace. */
+  clear(): Promise<void>
 }

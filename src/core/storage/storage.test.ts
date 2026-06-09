@@ -14,6 +14,15 @@ describe('StorageService', () => {
     await docs.delete('current')
     expect(await docs.get('current')).toBeUndefined()
   })
+
+  it('clear() erases data across every namespace', async () => {
+    const svc = new StorageService(new MemoryBackend())
+    await svc.scope('a').set('k', 1)
+    await svc.scope('b').set('k', 2)
+    await svc.clear()
+    expect(await svc.scope('a').get('k')).toBeUndefined()
+    expect(await svc.scope('b').get('k')).toBeUndefined()
+  })
 })
 
 describe('createStorage', () => {

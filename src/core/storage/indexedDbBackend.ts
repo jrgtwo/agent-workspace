@@ -58,4 +58,9 @@ export class IndexedDBBackend implements StorageBackend {
       .filter((k) => k.startsWith(prefix))
       .map((k) => k.slice(prefix.length))
   }
+
+  // Single 'kv' store holds every namespace, so one clear() wipes all data.
+  async clear(): Promise<void> {
+    await this.run('readwrite', (s) => s.clear())
+  }
 }

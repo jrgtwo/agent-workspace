@@ -20,7 +20,12 @@ export class OrchestratorSessionStore extends Emitter<SessionState> {
   getState = (): SessionState => this.state
 
   async init(): Promise<void> {
-    const sessions = (await this.scope.get<SessionMeta[]>('index')) ?? []
+    const raw = (await this.scope.get<SessionMeta[]>('index')) ?? []
+    // Heal prior corruption: older builds minted session ids from a counter that reset each reload,
+    // so the index could accrue entries with duplicate ids. Keep the first occurrence of each id.
+    const seen = new Set<string>()
+    const sessions = raw.filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)))
+    if (sessions.length !== raw.length) await this.scope.set('index', sessions)
     if (sessions.length === 0) {
       const id = this.genId()
       const seeded: SessionMeta = { id, title: 'New conversation', createdAt: this.now() }

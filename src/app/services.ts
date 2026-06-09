@@ -32,7 +32,12 @@ import type { StorageBackend } from '../core/storage/types'
 import type { FeatureManifest } from '../core/types'
 
 let seq = 0
+// Ephemeral, within-session ids (permission requests, proposals): a readable counter is fine.
 const genId = () => `id-${++seq}`
+// PERSISTED entities (documents, sessions, kanban, memory, images) need ids unique ACROSS reloads.
+// The seq counter resets to 0 every load, so reusing it would mint ids that collide with entities
+// saved in a previous session (duplicate docs/sessions, multiple index entries → one doc:<id>).
+const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `id-${++seq}`)
 
 const NOTES_PROMPT =
   'You are a local, privacy-first writing assistant embedded in a notes app. ' +
@@ -102,7 +107,7 @@ export interface CreateServicesOpts {
 export async function createServices(opts?: CreateServicesOpts): Promise<AppServices> {
   const storage = createStorage(opts?.backend)
   const broker = new PermissionBroker(genId)
-  const memory = new MemoryStore(genId)
+  const memory = new MemoryStore(uid)
   const proposals = new ProposalStore(genId)
   const preview = new PreviewStore()
   const theme = new ThemeStore()
@@ -125,7 +130,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
 
   // The document library owns the 'doc-editor' scope (index/active/doc:<id>) and hydrates
   // the active document into docStore. Memory/theme/accent persist via the declarative helper.
-  const library = new DocumentLibraryStore(docStore, storage.scope('doc-editor'), genId)
+  const library = new DocumentLibraryStore(docStore, storage.scope('doc-editor'), uid)
   await library.init()
   applier.register('doc-library', (c) => { void library.create((c.payload as { name?: string }).name); return true })
   await persistState(memory, storage.scope('memory'), 'entries')
@@ -133,10 +138,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   await persistState(agentAccent, storage.scope('ai-chat'), 'agent-accent')
   applyTheme(theme.getState().theme) // set initial attribute before first paint
 
-  // Kanban: native board feature. Collision-resistant ids because they are persisted.
-  const kanbanId = () =>
-    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : genId()
-  const kanban = new KanbanStore(kanbanId)
+  // Kanban: native board feature. Uses the collision-resistant `uid` (persisted).
+  const kanban = new KanbanStore(uid)
   const kanbanNav = new KanbanNavStore()
   await persistState(kanban, storage.scope('kanban'), 'state')
   applier.register('kanban-board', (c) => kanban.applyProposal(c.payload as import('../modules/kanban/types').KanbanProposalPayload))
@@ -154,14 +157,21 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   // Image blobs are stored locally in 'doc-images' scope (privacy: never uploaded).
   const imageScope = storage.scope('doc-images')
   const saveImage = async (file: File): Promise<string> => {
-    const id = genId()
+    const id = uid()
     await imageScope.set(id, file)
     return id
   }
 
   const notes = createNotesFeature({ docStore, library, engine: notesEngine, broker, memory, proposals, applier, accent: agentAccent, saveImage })
   const styleguide = createStyleGuideFeature()
-  const settings = createSettingsFeature({ theme, memory })
+  const clearAll = async () => {
+    // "Clear all data": wipe everything but keep the theme preference, then reload a fresh workspace.
+    const themeState = await storage.scope('theme').get('state')
+    await storage.clear()
+    if (themeState !== undefined) await storage.scope('theme').set('state', themeState)
+    location.reload()
+  }
+  const settings = createSettingsFeature({ theme, memory, clearAll })
   const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent, proposals, applier })
 
   // Register each feature's tools into ITS OWN registry, plus the global `remember` tool into both
@@ -181,9 +191,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, contextProvider: () => describeKanbanContext(kanban, kanbanNav) }],
   ])
 
-  const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), genId)
+  const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), uid)
   await sessionStore.init()
-  const planStore = new OrchestratorPlanStore(storage.scope('orchestrator-plan'), kanbanId)
+  const planStore = new OrchestratorPlanStore(storage.scope('orchestrator-plan'), uid)
   await planStore.init(sessionStore.getState().activeId)
 
   orchestratorEngine.setContextProvider(() => describeOrchestratorContext(planStore, featureAgents))

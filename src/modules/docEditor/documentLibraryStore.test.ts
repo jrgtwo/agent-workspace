@@ -103,4 +103,20 @@ describe('DocumentLibraryStore', () => {
       expect((await backend.get('doc-editor', `doc:${id}`)) as { text: string }).toMatchObject({ text: 'edited content' })
     })
   })
+
+  it('init drops index entries with duplicate ids (heals prior counter-collision corruption)', async () => {
+    const { lib, scope } = setup()
+    await scope.set('index', [
+      { id: 'id-1', name: 'A.md', updatedAt: 1 },
+      { id: 'id-1', name: 'B.md', updatedAt: 2 }, // collided id from the old resetting counter
+      { id: 'id-2', name: 'C.md', updatedAt: 3 },
+    ])
+    await scope.set('doc:id-1', { name: 'A.md', text: 'AAA' })
+    await scope.set('doc:id-2', { name: 'C.md', text: 'CCC' })
+
+    await lib.init()
+
+    expect(lib.getState().docs.map((d) => d.id)).toEqual(['id-1', 'id-2']) // duplicate dropped
+    expect(await scope.get('index')).toHaveLength(2) // healed index persisted
+  })
 })

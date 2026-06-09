@@ -36,6 +36,15 @@ export class DocumentLibraryStore extends Emitter<LibraryState> {
   async init(): Promise<void> {
     let docs = (await this.scope.get<DocMeta[]>('index')) ?? []
 
+    // Heal prior corruption: older builds minted doc ids from a counter that reset each reload, so the
+    // index could accrue entries with duplicate ids (all pointing at the same doc:<id>). Keep the first.
+    const seen = new Set<string>()
+    const deduped = docs.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
+    if (deduped.length !== docs.length) {
+      docs = deduped
+      await this.scope.set('index', docs)
+    }
+
     if (docs.length === 0) {
       const legacy = await this.scope.get<DocContent>('current')
       if (legacy) {

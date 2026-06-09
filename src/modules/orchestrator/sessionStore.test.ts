@@ -51,4 +51,17 @@ describe('OrchestratorSessionStore', () => {
     await b.init()
     expect(b.getState().sessions.some((x) => x.title === 'Persisted')).toBe(true)
   })
+
+  it('init drops sessions with duplicate ids (heals prior counter-collision corruption)', async () => {
+    const scope = createStorage(new MemoryBackend()).scope('sessions')
+    await scope.set('index', [
+      { id: 's-1', title: 'First', createdAt: 1 },
+      { id: 's-1', title: 'Collided', createdAt: 2 }, // duplicate id from the old resetting counter
+      { id: 's-2', title: 'Second', createdAt: 3 },
+    ])
+    const s = new OrchestratorSessionStore(scope, () => 'x', () => 1)
+    await s.init()
+    expect(s.getState().sessions.map((x) => x.id)).toEqual(['s-1', 's-2'])
+    expect(await scope.get('index')).toHaveLength(2)
+  })
 })

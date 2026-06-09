@@ -1,0 +1,4 @@
+.data-settings { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; height: 100%; overflow: auto; }
+.data-settings__head { font-size: 11px; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; }
+.data-settings__desc { font-size: 0.85rem; color: var(--text-muted); margin: 0; max-width: 52ch; }
+.data-settings .btn--danger { align-self: flex-start; }

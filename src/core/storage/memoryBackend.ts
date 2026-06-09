@@ -25,4 +25,8 @@ export class MemoryBackend implements StorageBackend {
       .filter((k) => k.startsWith(prefix))
       .map((k) => k.slice(prefix.length))
   }
+
+  async clear(): Promise<void> {
+    this.data.clear()
+  }
 }

@@ -18,6 +18,10 @@ export class StorageService implements Storage {
       keys: () => backend.keys(namespace),
     }
   }
+
+  clear(): Promise<void> {
+    return this.backend.clear()
+  }
 }
 
 // Prefer real IndexedDB; fall back to in-memory if it is absent (e.g. tests, private mode).

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { KanbanStore } from './kanbanStore'
 import { KanbanNavStore } from './kanbanNavStore'
 import { ProposalStore } from '../../core/proposalStore'
@@ -18,7 +18,9 @@ describe('kanban surfaces pending proposals', () => {
 
     render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
     expect(screen.getByText('Create board "New"')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /accept change/i }))
+    // Read-only indicator on the board — approval moved to the ChangeApprovalModal (drives the applier).
+    expect(screen.queryByRole('button', { name: /accept change/i })).toBeNull()
+    applier.accept(proposals.getState().pending[0])
     expect(store.getState().projects.map((p) => p.name)).toContain('New')
   })
 

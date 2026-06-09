@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createDocEditorModule } from './docEditorModule'
 import { DocEditorStore } from './docEditorStore'
@@ -165,16 +165,19 @@ describe('docEditorModule', () => {
     expect(proposals.forModule('doc-editor-append')).toHaveLength(1)
   })
 
-  it('renders an append proposal and accepting it appends to the doc', () => {
+  it('surfaces an append proposal read-only (no buttons — approval is in the modal); applier applies it', () => {
     const store = new DocEditorStore('Doc.md', 'Intro.')
     let n = 0
     const proposals = new ProposalStore(() => `c-${++n}`)
     const applier = makeApplier(proposals, store)
     const mod = createDocEditorModule(store, proposals, { applier })
-    proposals.propose({ moduleId: 'doc-editor-append', summary: 'Append to Doc.md: "More."', payload: { text: 'More.', reason: 'r' } })
+    const id = proposals.propose({ moduleId: 'doc-editor-append', summary: 'Append to Doc.md: "More."', payload: { text: 'More.', reason: 'r' } })
     render(mod.render())
     expect(screen.getByText('Append to Doc.md: "More."')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /accept change/i }))
+    expect(screen.getByText(/awaiting approval/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /accept change/i })).toBeNull()
+    // Approval is driven by the ChangeApprovalModal → applier; applying appends to the doc.
+    applier.accept(proposals.getState().pending.find((c) => c.id === id)!)
     expect(store.getState().text).toBe('Intro.\n\nMore.')
   })
 })

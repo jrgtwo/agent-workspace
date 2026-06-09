@@ -23,4 +23,4 @@
 
 .plan__change { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; }
 .plan__change-summary { flex: 1; font-size: 0.82rem; }
-.plan__change-btns { display: flex; gap: 4px; }
+.plan__change-status { font-size: 0.72rem; opacity: 0.7; white-space: nowrap; }

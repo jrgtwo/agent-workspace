@@ -74,7 +74,9 @@ describe('document explorer surfaces pending new-document proposals', () => {
 
     render(mod.render())
     expect(screen.getByText('Create document "Plan.md"')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /accept change/i }))
+    // Read-only indicator — approval moved to the ChangeApprovalModal (drives the applier).
+    expect(screen.queryByRole('button', { name: /accept change/i })).toBeNull()
+    applier.accept(proposals.getState().pending[0])
     expect(created).toBe('Plan.md')
   })
 })

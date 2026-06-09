@@ -9,8 +9,8 @@ import './orchestrator.css'
 
 const ICON: Record<PlanStepStatus, string> = { pending: '○', running: '⟳', done: '✓', failed: '✕' }
 
-function PlanPanel({ plan, proposals, applier, preview }: {
-  plan: OrchestratorPlanStore; proposals: ProposalStore; applier: ProposalApplier; preview: PreviewStore
+function PlanPanel({ plan, proposals, preview }: {
+  plan: OrchestratorPlanStore; proposals: ProposalStore; preview: PreviewStore
 }) {
   const { steps } = useStore(plan)
   const { pending } = useStore(proposals)
@@ -34,13 +34,11 @@ function PlanPanel({ plan, proposals, applier, preview }: {
                 {s.title}
                 {s.targetFeature && <> <span className="plan__tag">{s.targetFeature}</span></>}
                 {s.result && <div className="plan__result">{s.result}</div>}
+                {/* Pending changes are read-only here — approval happens in the ChangeApprovalModal. */}
                 {changes.map((c) => (
                   <div key={c!.id} className="plan__change">
                     <span className="plan__change-summary">{c!.summary}</span>
-                    <span className="plan__change-btns">
-                      <button className="btn btn--icon" aria-label="Accept change" onClick={(e) => { e.stopPropagation(); applier.accept(c!) }}>✓</button>
-                      <button className="btn btn--icon" aria-label="Reject change" onClick={(e) => { e.stopPropagation(); applier.reject(c!) }}>✗</button>
-                    </span>
+                    <span className="plan__change-status">⏳ awaiting approval</span>
                   </div>
                 ))}
               </div>
@@ -60,7 +58,7 @@ export function createPlanModule(deps: {
     title: 'Plan',
     locality: 'LOCAL',
     layoutHints: { defaultSize: 25, collapsible: true, minSize: 15 },
-    render: () => <PlanPanel plan={deps.plan} proposals={deps.proposals} applier={deps.applier} preview={deps.preview} />,
+    render: () => <PlanPanel plan={deps.plan} proposals={deps.proposals} preview={deps.preview} />,
     tools: [],
   }
 }

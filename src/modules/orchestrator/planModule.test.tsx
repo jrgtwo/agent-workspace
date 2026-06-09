@@ -33,14 +33,12 @@ describe('planModule', () => {
     expect(screen.getByText('kanban')).toBeInTheDocument()
   })
 
-  it('renders a step\'s pending change inline and accepts it via the applier', async () => {
+  it('lists a step\'s pending change read-only (no action buttons — approval is in the modal)', async () => {
     let n = 0
     const plan = new OrchestratorPlanStore(createStorage(new MemoryBackend()).scope('plan'), () => `st-${++n}`)
     await plan.init('A')
     const proposals = new ProposalStore(() => `c-${++n}`)
     const applier = new ProposalApplier(proposals)
-    let applied = false
-    applier.register('kanban-board', () => { applied = true; return true })
     const preview = new PreviewStore()
     const cid = proposals.propose({ moduleId: 'kanban-board', summary: 'Add card "X"', payload: {} })
     plan.setPlan([{ title: 'work', targetFeature: 'kanban', task: 't' }])
@@ -49,8 +47,9 @@ describe('planModule', () => {
     const mod = createPlanModule({ plan, proposals, applier, preview })
     render(mod.render())
     expect(screen.getByText('Add card "X"')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /accept change/i }))
-    expect(applied).toBe(true)
+    expect(screen.getByText(/awaiting approval/i)).toBeTruthy()
+    // No Accept/Reject buttons in the plan — that moved to the ChangeApprovalModal.
+    expect(screen.queryByRole('button', { name: /accept|reject/i })).toBeNull()
   })
 
   it('clicking a step focuses the preview on its target feature', async () => {

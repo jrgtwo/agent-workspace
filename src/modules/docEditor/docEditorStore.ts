@@ -15,4 +15,10 @@ export class DocEditorStore extends Emitter<DocState> {
     this.setText(this.state.text.replace(payload.find, () => payload.replace))
     return true
   }
+
+  /** Append a block of markdown to the end, separated by a blank line (verbatim into an empty doc). */
+  appendText(text: string): void {
+    const current = this.state.text
+    this.setText(current.trim() ? `${current.trimEnd()}\n\n${text}` : text)
+  }
 }

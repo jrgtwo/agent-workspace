@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { KanbanApp } from './KanbanApp'
 import { KanbanStore } from './kanbanStore'
 import { KanbanNavStore } from './kanbanNavStore'
+import { ProposalStore } from '../../core/proposalStore'
+import { ProposalApplier } from '../../core/proposalApplier'
 
 let seq = 0
 const genId = () => `id-${++seq}`
@@ -11,17 +13,19 @@ function setup() {
   seq = 0
   const store = new KanbanStore(genId, () => 1)
   const nav = new KanbanNavStore()
+  const proposals = new ProposalStore(genId)
+  const applier = new ProposalApplier(proposals)
   const pid = store.createProject({ name: 'Proj' })
   nav.openBoard({ projectId: pid })
-  return { store, nav, pid }
+  return { store, nav, proposals, applier, pid }
 }
 
 describe('Kanban checklist cards', () => {
   it('builds a checklist in the editor and ticks items inline on the card', () => {
-    const { store, nav, pid } = setup()
+    const { store, nav, proposals, applier, pid } = setup()
     const col = store.columnsForScope({ projectId: pid })[0]
     const cardId = store.createCard({ projectId: pid }, col.id, { title: 'List' })
-    render(<KanbanApp store={store} nav={nav} />)
+    render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     // open editor, switch to checklist, add two items
     fireEvent.click(screen.getByText('List'))

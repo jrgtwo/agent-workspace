@@ -5,6 +5,7 @@ import type {
   CardType,
   ChecklistItem,
   Column,
+  KanbanProposalPayload,
   KanbanState,
   Project,
   Scope,
@@ -284,6 +285,20 @@ export class KanbanStore extends Emitter<KanbanState> {
     )
     this.state = { ...this.state, columns, cards }
     this.notify()
+  }
+
+  /** Apply a pending kanban proposal. Returns whether it applied. */
+  applyProposal(payload: KanbanProposalPayload): boolean {
+    if (payload.kind === 'create-card') {
+      const id = this.createCard(payload.scope, payload.columnId, payload.input)
+      if (payload.input.type === 'subboard') {
+        this.ensureBoardColumns({ projectId: payload.scope.projectId, parentCardId: id })
+      }
+      return true
+    }
+    if (!this.getCard(payload.cardId)) return false
+    this.moveCard(payload.cardId, payload.toColumnId, payload.toIndex)
+    return true
   }
 
   moveCard(cardId: string, toColumnId: string, toIndex: number): void {

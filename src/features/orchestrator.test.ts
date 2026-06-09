@@ -6,6 +6,9 @@ import { PermissionBroker } from '../core/permissionBroker'
 import { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
 import { OrchestratorPlanStore } from '../modules/orchestrator/planStore'
+import { ProposalStore } from '../core/proposalStore'
+import { ProposalApplier } from '../core/proposalApplier'
+import { PreviewStore } from '../modules/orchestrator/previewStore'
 import { createStorage } from '../core/storage/storage'
 import { MemoryBackend } from '../core/storage/memoryBackend'
 import type { LayoutNode } from '../core/types'
@@ -15,17 +18,27 @@ function panelIds(node: LayoutNode): string[] {
 }
 
 describe('orchestrator feature', () => {
-  it('declares sessions | chat | plan modules and a layout', async () => {
+  it('declares sessions | chat | plan | preview modules and a layout', async () => {
     const storage = createStorage(new MemoryBackend())
     const broker = new PermissionBroker(() => 'p')
     const engine = new AgentEngine({ chat: vi.fn() }, new Registry(), broker, 'orchestrator')
     const sessions = new OrchestratorSessionStore(storage.scope('s'), () => 's1'); await sessions.init()
     const plan = new OrchestratorPlanStore(storage.scope('p'), () => 'st1'); await plan.init('s1')
-    const feature = createOrchestratorFeature({ engine, broker, accent: new AgentAccentStore(), sessions, plan })
+    const proposals = new ProposalStore(() => 'c1')
+    const applier = new ProposalApplier(proposals)
+    const preview = new PreviewStore()
+    const previewRenderers = { kanban: () => null }
+    const feature = createOrchestratorFeature({ engine, broker, accent: new AgentAccentStore(), sessions, plan, proposals, applier, preview, previewRenderers })
 
     expect(feature.id).toBe('orchestrator')
     expect(feature.name).toBe('Orchestrator')
-    expect(feature.modules.map((m) => m.id).sort()).toEqual(['ai-chat', 'orchestrator-plan', 'orchestrator-sessions'])
-    expect(panelIds(feature.layout).sort()).toEqual(['ai-chat', 'orchestrator-plan', 'orchestrator-sessions'])
+
+    const ids = feature.modules.map((m) => m.id)
+    expect(ids).toContain('orchestrator-preview')
+    const cols = (feature.layout as { children: { moduleId: string }[] }).children.map((c) => c.moduleId)
+    expect(cols).toEqual(['orchestrator-sessions', 'ai-chat', 'orchestrator-plan', 'orchestrator-preview'])
+
+    expect(feature.modules.map((m) => m.id).sort()).toEqual(['ai-chat', 'orchestrator-plan', 'orchestrator-preview', 'orchestrator-sessions'])
+    expect(panelIds(feature.layout).sort()).toEqual(['ai-chat', 'orchestrator-plan', 'orchestrator-preview', 'orchestrator-sessions'])
   })
 })

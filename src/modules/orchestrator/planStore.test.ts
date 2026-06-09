@@ -53,4 +53,15 @@ describe('OrchestratorPlanStore', () => {
     await b.store.init('A')
     expect(b.store.getState().steps.map((s: PlanStep) => s.title)).toEqual(['persisted'])
   })
+
+  it('setPlan initializes changeIds to [] and updateStep can set them', async () => {
+    let n = 0
+    const store = new OrchestratorPlanStore(createStorage(new MemoryBackend()).scope('plan'), () => `st-${++n}`)
+    await store.init('A')
+    store.setPlan([{ title: 'work', targetFeature: 'kanban', task: 't' }])
+    const id = store.getState().steps[0].id
+    expect(store.getState().steps[0].changeIds).toEqual([])
+    store.updateStep(id, { changeIds: ['c-1', 'c-2'] })
+    expect(store.getState().steps[0].changeIds).toEqual(['c-1', 'c-2'])
+  })
 })

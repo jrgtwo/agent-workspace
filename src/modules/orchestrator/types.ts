@@ -9,6 +9,7 @@ export interface PlanStep {
   task: string          // instruction handed to the subagent
   status: PlanStepStatus
   result?: string       // subagent's concise report or error
+  changeIds: string[]   // ids of proposals the delegated subagent created for this step
 }
 
 export interface SessionMeta {

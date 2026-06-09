@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { DocumentLibraryStore } from './documentLibraryStore'
+import type { ProposalStore } from '../../core/proposalStore'
+import type { ProposalApplier } from '../../core/proposalApplier'
+import { PendingReview } from '../proposals/PendingReview'
 import './documentExplorer.css'
 
-function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
+function ExplorerPanel({ library, proposals, applier }: { library: DocumentLibraryStore; proposals: ProposalStore; applier: ProposalApplier }) {
   const { docs, activeId } = useStore(library)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
@@ -18,6 +21,7 @@ function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
 
   return (
     <div className="explorer">
+      <PendingReview proposals={proposals} applier={applier} moduleId="doc-library" />
       <div className="explorer__head">
         <span className="explorer__title">DOCUMENTS</span>
         <button aria-label="new document" onClick={() => void library.create()} className="btn btn--icon" style={{ marginLeft: 'auto' }}>+ New</button>
@@ -58,13 +62,13 @@ function ExplorerPanel({ library }: { library: DocumentLibraryStore }) {
   )
 }
 
-export function createDocumentExplorerModule(library: DocumentLibraryStore): WorkspaceModule {
+export function createDocumentExplorerModule(library: DocumentLibraryStore, proposals: ProposalStore, applier: ProposalApplier): WorkspaceModule {
   return {
     id: 'document-explorer',
     title: 'Documents',
     locality: 'LOCAL',
     layoutHints: { defaultSize: 16, collapsible: true, minSize: 10 },
-    render: () => <ExplorerPanel library={library} />,
+    render: () => <ExplorerPanel library={library} proposals={proposals} applier={applier} />,
     tools: [],
   }
 }

@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { useStore } from '../../core/emitter'
 import type { KanbanStore } from './kanbanStore'
 import type { KanbanNavStore } from './kanbanNavStore'
+import type { ProposalStore } from '../../core/proposalStore'
+import type { ProposalApplier } from '../../core/proposalApplier'
+import { PendingReview } from '../proposals/PendingReview'
 
-export function ProjectsList({ store, nav }: { store: KanbanStore; nav: KanbanNavStore }) {
+export function ProjectsList({ store, nav, proposals, applier }: { store: KanbanStore; nav: KanbanNavStore; proposals: ProposalStore; applier: ProposalApplier }) {
   const { projects, cards } = useStore(store)
   const [name, setName] = useState('')
 
@@ -17,6 +20,7 @@ export function ProjectsList({ store, nav }: { store: KanbanStore; nav: KanbanNa
 
   return (
     <div className="kanban-projects">
+      <PendingReview proposals={proposals} applier={applier} moduleId="kanban-project" />
       <header className="kanban-projects__head">
         <h2 className="kanban-projects__title">Boards</h2>
       </header>

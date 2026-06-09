@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { KanbanStore } from './kanbanStore'
-import type { Scope } from './types'
+import type { Scope, KanbanProposalPayload } from './types'
 
 let seq = 0
 const genId = () => `id-${++seq}`
@@ -222,5 +222,37 @@ describe('KanbanStore', () => {
       'Review',
       'Done',
     ])
+  })
+})
+
+describe('KanbanStore.applyProposal', () => {
+  it('applies a create-card proposal', () => {
+    let n = 0
+    const store = new KanbanStore(() => `k-${++n}`, () => 0)
+    const pid = store.createProject({ name: 'P' })
+    const col = store.columnsForScope({ projectId: pid })[0]
+    const payload: KanbanProposalPayload = { kind: 'create-card', scope: { projectId: pid }, columnId: col.id, input: { title: 'Draft' } }
+    expect(store.applyProposal(payload)).toBe(true)
+    expect(store.cardsInColumn(col.id).map((c) => c.title)).toEqual(['Draft'])
+  })
+
+  it('seeds sub-board columns when a create-card proposal is a subboard', () => {
+    let n = 0
+    const store = new KanbanStore(() => `k-${++n}`, () => 0)
+    const pid = store.createProject({ name: 'P' })
+    const col = store.columnsForScope({ projectId: pid })[0]
+    store.applyProposal({ kind: 'create-card', scope: { projectId: pid }, columnId: col.id, input: { title: 'Sub', type: 'subboard' } })
+    const card = store.getState().cards.find((c) => c.title === 'Sub')!
+    expect(store.columnsForScope({ projectId: pid, parentCardId: card.id }).length).toBeGreaterThan(0)
+  })
+
+  it('applies a move-card proposal', () => {
+    let n = 0
+    const store = new KanbanStore(() => `k-${++n}`, () => 0)
+    const pid = store.createProject({ name: 'P' })
+    const [a, b] = store.columnsForScope({ projectId: pid })
+    const cardId = store.createCard({ projectId: pid }, a.id, { title: 'X' })
+    expect(store.applyProposal({ kind: 'move-card', cardId, toColumnId: b.id, toIndex: 0 })).toBe(true)
+    expect(store.getCard(cardId)!.columnId).toBe(b.id)
   })
 })

@@ -7,6 +7,8 @@ import { createStorage } from '../../core/storage/storage'
 import { MemoryBackend } from '../../core/storage/memoryBackend'
 import type { ToolDef } from '../../core/types'
 import type { ChatResult } from '../../core/llamaClient'
+import { ProposalStore } from '../../core/proposalStore'
+import { PreviewStore } from './previewStore'
 
 function makePlan() {
   let n = 0
@@ -33,7 +35,7 @@ function scriptedClient(scripts: ChatResult[]) {
 describe('orchestrator tools', () => {
   it('update_plan replaces the active plan with pending steps', async () => {
     const plan = makePlan(); await plan.init('A')
-    const tools = createOrchestratorTools({ plan, featureAgents: new Map(), client: { chat: async () => ({ content: '', toolCalls: [] }) }, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const tools = createOrchestratorTools({ plan, featureAgents: new Map(), client: { chat: async () => ({ content: '', toolCalls: [] }) }, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
     const updatePlan = tools.find((t) => t.name === 'update_plan')!
     const res = updatePlan.handler({ steps: [{ title: 'Step 1', targetFeature: 'widget', task: 'do it' }] })
     expect(res).toMatchObject({ ok: true, count: 1 })
@@ -50,7 +52,7 @@ describe('orchestrator tools', () => {
       { content: '', toolCalls: [{ id: 'c1', name: 'do_work', arguments: '{}' }] },
       { content: 'Did the widget work.', toolCalls: [] },
     ])
-    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
     const delegate = tools.find((t) => t.name === 'delegate') as ToolDef
     const res = await delegate.handler({ targetFeature: 'widget', task: 'do it', stepId }) as { ok: boolean; result: string }
     expect(res.ok).toBe(true)
@@ -68,7 +70,7 @@ describe('orchestrator tools', () => {
     ])
     const seen: { role: string; content: string }[][] = []
     const client = { chat: async (msgs: { role: string; content: string }[]) => { seen.push(msgs); return { content: 'done', toolCalls: [] } } }
-    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
     const delegate = tools.find((t) => t.name === 'delegate')!
 
     await delegate.handler({ targetFeature: 'widget', task: 'do it' })
@@ -79,7 +81,7 @@ describe('orchestrator tools', () => {
 
   it('delegate to an unknown feature returns a friendly error and does not throw', async () => {
     const plan = makePlan(); await plan.init('A')
-    const tools = createOrchestratorTools({ plan, featureAgents: new Map(), client: { chat: async () => ({ content: '', toolCalls: [] }) }, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const tools = createOrchestratorTools({ plan, featureAgents: new Map(), client: { chat: async () => ({ content: '', toolCalls: [] }) }, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
     const delegate = tools.find((t) => t.name === 'delegate')!
     const res = await delegate.handler({ targetFeature: 'ghost', task: 'x' }) as { ok: boolean; error: string }
     expect(res.ok).toBe(false)
@@ -95,7 +97,7 @@ describe('orchestrator tools', () => {
       { content: '', toolCalls: [{ id: 'c1', name: 'do_work', arguments: '{}' }] },
       { content: 'Did the widget work.', toolCalls: [] },
     ])
-    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
     const delegate = tools.find((t) => t.name === 'delegate')!
     const res = await delegate.handler({ targetFeature: 'widget', task: 'do it' }) as { ok: boolean } // no stepId
     expect(res.ok).toBe(true)
@@ -112,11 +114,73 @@ describe('orchestrator tools', () => {
       { content: '', toolCalls: [{ id: 'c1', name: 'do_work', arguments: '{}' }] },
       { content: 'done', toolCalls: [] },
     ])
-    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator' })
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
     const delegate = tools.find((t) => t.name === 'delegate')!
     const res = await delegate.handler({ targetFeature: 'widget', task: 'do it' }) as { ok: boolean }
     expect(res.ok).toBe(true)
     expect(ran.value).toBe(true)
     expect(plan.getState().steps[0].status).toBe('pending') // unrelated step untouched
+  })
+
+  it('delegate attaches newly-created proposal ids to the step and focuses the preview', async () => {
+    const plan = makePlan(); await plan.init('A')
+    plan.setPlan([{ title: 'work', targetFeature: 'widget', task: 'do it' }])
+    const stepId = plan.getState().steps[0].id
+    let pn = 0
+    const proposals = new ProposalStore(() => `c-${++pn}`)
+    const preview = new PreviewStore()
+    const registry = new Registry()
+    registry.register([{
+      name: 'do_work', description: 'w', parameters: { type: 'object', properties: {} },
+      handler: () => { proposals.propose({ moduleId: 'kanban-board', summary: 's', payload: {} }); return { ok: true } },
+    }])
+    const featureAgents: FeatureAgentRegistry = new Map([['widget', { id: 'widget', title: 'W', description: 'd', registry }]])
+    const client = scriptedClient([
+      { content: '', toolCalls: [{ id: 'c1', name: 'do_work', arguments: '{}' }] },
+      { content: 'done', toolCalls: [] },
+    ])
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals, preview })
+    const delegate = tools.find((t) => t.name === 'delegate')!
+    await delegate.handler({ targetFeature: 'widget', task: 'do it', stepId })
+    expect(preview.getState().focusedFeature).toBe('widget')
+    expect(plan.getState().steps[0].changeIds).toHaveLength(1)
+  })
+
+  it('delegate flags when the subagent proposed NOTHING, so a false "done" is not relayed', async () => {
+    const plan = makePlan(); await plan.init('A')
+    const proposals = new ProposalStore(() => 'c')
+    const preview = new PreviewStore()
+    const registry = new Registry()
+    registry.register([{ name: 'noop', description: 'n', parameters: { type: 'object', properties: {} }, handler: () => ({ ok: true }) }])
+    const featureAgents: FeatureAgentRegistry = new Map([['kanban', { id: 'kanban', title: 'K', description: 'd', registry }]])
+    const client = scriptedClient([
+      { content: '', toolCalls: [{ id: 'c1', name: 'noop', arguments: '{}' }] },
+      { content: 'I created the board.', toolCalls: [] },
+    ])
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals, preview })
+    const delegate = tools.find((t) => t.name === 'delegate')!
+    const res = await delegate.handler({ targetFeature: 'kanban', task: 'create a board' }) as { result: string; changesProposed: number }
+    expect(res.changesProposed).toBe(0)
+    expect(res.result).toContain('NO changes')
+    expect(res.result).toContain('I created the board.') // the subagent's prose is preserved, but flagged
+  })
+
+  it('delegate reports the concrete changes the subagent actually proposed', async () => {
+    const plan = makePlan(); await plan.init('A')
+    let pn = 0
+    const proposals = new ProposalStore(() => `c-${++pn}`)
+    const preview = new PreviewStore()
+    const registry = new Registry()
+    registry.register([{ name: 'mk', description: 'm', parameters: { type: 'object', properties: {} }, handler: () => { proposals.propose({ moduleId: 'kanban-project', summary: 'Create board "Launch"', payload: {} }); return { proposed: true } } }])
+    const featureAgents: FeatureAgentRegistry = new Map([['kanban', { id: 'kanban', title: 'K', description: 'd', registry }]])
+    const client = scriptedClient([
+      { content: '', toolCalls: [{ id: 'c1', name: 'mk', arguments: '{}' }] },
+      { content: 'done', toolCalls: [] },
+    ])
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals, preview })
+    const delegate = tools.find((t) => t.name === 'delegate')!
+    const res = await delegate.handler({ targetFeature: 'kanban', task: 'create a board' }) as { result: string; changesProposed: number }
+    expect(res.changesProposed).toBe(1)
+    expect(res.result).toContain('Create board "Launch"')
   })
 })

@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { KanbanApp } from './KanbanApp'
 import { KanbanStore } from './kanbanStore'
 import { KanbanNavStore } from './kanbanNavStore'
+import { ProposalStore } from '../../core/proposalStore'
+import { ProposalApplier } from '../../core/proposalApplier'
 
 let seq = 0
 const genId = () => `id-${++seq}`
@@ -11,17 +13,19 @@ function setup() {
   seq = 0
   const store = new KanbanStore(genId, () => 1)
   const nav = new KanbanNavStore()
+  const proposals = new ProposalStore(genId)
+  const applier = new ProposalApplier(proposals)
   const pid = store.createProject({ name: 'Proj' })
   nav.openBoard({ projectId: pid })
-  return { store, nav, pid }
+  return { store, nav, proposals, applier, pid }
 }
 
 describe('Kanban board flows', () => {
   it('adds a description to a card through the editor', () => {
-    const { store, nav, pid } = setup()
+    const { store, nav, proposals, applier, pid } = setup()
     const col = store.columnsForScope({ projectId: pid })[0]
     const cardId = store.createCard({ projectId: pid }, col.id, { title: 'My card' })
-    render(<KanbanApp store={store} nav={nav} />)
+    render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     fireEvent.click(screen.getByText('My card'))
     fireEvent.change(screen.getByPlaceholderText('Add a description…'), {
@@ -34,10 +38,10 @@ describe('Kanban board flows', () => {
   })
 
   it('sets a due date on a card', () => {
-    const { store, nav, pid } = setup()
+    const { store, nav, proposals, applier, pid } = setup()
     const col = store.columnsForScope({ projectId: pid })[0]
     const cardId = store.createCard({ projectId: pid }, col.id, { title: 'Ship' })
-    const { container } = render(<KanbanApp store={store} nav={nav} />)
+    const { container } = render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     fireEvent.click(screen.getByText('Ship'))
     fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2099-12-31' } })
@@ -48,10 +52,10 @@ describe('Kanban board flows', () => {
   })
 
   it('creates a sub-board card and navigates into it', () => {
-    const { store, nav, pid } = setup()
+    const { store, nav, proposals, applier, pid } = setup()
     const col = store.columnsForScope({ projectId: pid })[0]
     const cardId = store.createCard({ projectId: pid }, col.id, { title: 'Epic' })
-    render(<KanbanApp store={store} nav={nav} />)
+    render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     // turn the card into a sub-board via the editor
     fireEvent.click(screen.getByText('Epic'))

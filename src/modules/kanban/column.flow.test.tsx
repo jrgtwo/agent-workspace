@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { KanbanApp } from './KanbanApp'
 import { KanbanStore } from './kanbanStore'
 import { KanbanNavStore } from './kanbanNavStore'
+import { ProposalStore } from '../../core/proposalStore'
+import { ProposalApplier } from '../../core/proposalApplier'
 
 let seq = 0
 const genId = () => `id-${++seq}`
@@ -11,15 +13,17 @@ function setup() {
   seq = 0
   const store = new KanbanStore(genId, () => 1)
   const nav = new KanbanNavStore()
+  const proposals = new ProposalStore(genId)
+  const applier = new ProposalApplier(proposals)
   const pid = store.createProject({ name: 'Proj' })
   nav.openBoard({ projectId: pid })
-  return { store, nav, pid }
+  return { store, nav, proposals, applier, pid }
 }
 
 describe('Kanban column management', () => {
   it('adds a column', () => {
-    const { store, nav, pid } = setup()
-    render(<KanbanApp store={store} nav={nav} />)
+    const { store, nav, proposals, applier, pid } = setup()
+    render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     fireEvent.click(screen.getByText('+ Add column'))
     const input = screen.getByPlaceholderText('Column name')
@@ -31,8 +35,8 @@ describe('Kanban column management', () => {
   })
 
   it('renames a column inline', () => {
-    const { store, nav, pid } = setup()
-    render(<KanbanApp store={store} nav={nav} />)
+    const { store, nav, proposals, applier, pid } = setup()
+    render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     fireEvent.dblClick(screen.getByText('Backlog'))
     const input = screen.getByDisplayValue('Backlog')
@@ -44,8 +48,8 @@ describe('Kanban column management', () => {
   })
 
   it('deletes a column', () => {
-    const { store, nav, pid } = setup()
-    render(<KanbanApp store={store} nav={nav} />)
+    const { store, nav, proposals, applier, pid } = setup()
+    render(<KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />)
 
     fireEvent.click(screen.getByLabelText('Delete column In Progress'))
 

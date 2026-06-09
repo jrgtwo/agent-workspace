@@ -6,6 +6,8 @@ import type { KanbanNavStore } from '../modules/kanban/kanbanNavStore'
 import type { AgentEngine } from '../core/agentEngine'
 import type { PermissionBroker } from '../core/permissionBroker'
 import type { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
+import type { ProposalStore } from '../core/proposalStore'
+import type { ProposalApplier } from '../core/proposalApplier'
 
 export function createBoardFeature(deps: {
   store: KanbanStore
@@ -13,8 +15,10 @@ export function createBoardFeature(deps: {
   engine: AgentEngine
   broker: PermissionBroker
   accent: AgentAccentStore
+  proposals: ProposalStore
+  applier: ProposalApplier
 }): FeatureManifest {
-  const board = createKanbanModule(deps.store, deps.nav)
+  const board = createKanbanModule(deps.store, deps.nav, deps.proposals, deps.applier)
   const chat = createAiChatModule(deps.engine, deps.broker, deps.accent) // the Board feature's own agent
   return {
     id: 'kanban',

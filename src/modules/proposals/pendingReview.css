@@ -1,0 +1,12 @@
+.pending-review {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 6px;
+  padding: 6px 8px;
+  background: var(--surface-2, transparent);
+  font-size: 0.85rem;
+}
+.pending-review__head { opacity: 0.7; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.pending-review__row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.pending-review__summary { flex: 1; }
+.pending-review__btns { display: flex; gap: 4px; }

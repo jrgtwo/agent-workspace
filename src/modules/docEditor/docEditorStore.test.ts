@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { DocEditorStore } from './docEditorStore'
 
+describe('DocEditorStore.appendText', () => {
+  it('writes into an empty document with no leading blank line', () => {
+    const s = new DocEditorStore('Doc.md', '')
+    s.appendText('First line.')
+    expect(s.getState().text).toBe('First line.')
+  })
+
+  it('appends to existing content separated by a blank line', () => {
+    const s = new DocEditorStore('Doc.md', 'Intro.')
+    s.appendText('More.')
+    expect(s.getState().text).toBe('Intro.\n\nMore.')
+  })
+})
+
 describe('DocEditorStore', () => {
   it('sets and reads text, and replaces a substring via applyChange', () => {
     const s = new DocEditorStore('Untitled.md', 'Hello world')

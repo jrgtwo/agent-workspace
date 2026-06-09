@@ -20,7 +20,8 @@ export class OrchestratorPlanStore extends Emitter<PlanState> {
   getState = (): PlanState => this.state
 
   async init(sessionId: string): Promise<void> {
-    const steps = (await this.scope.get<PlanStep[]>(sessionId)) ?? []
+    const raw = (await this.scope.get<PlanStep[]>(sessionId)) ?? []
+    const steps = raw.map((s) => ({ ...s, changeIds: s.changeIds ?? [] }))
     this.state = { sessionId, steps }
     this.notify()
   }
@@ -34,13 +35,14 @@ export class OrchestratorPlanStore extends Emitter<PlanState> {
         targetFeature: s.targetFeature ?? '',
         task: s.task ?? '',
         status: 'pending' as const,
+        changeIds: [],
       })),
     }
     void this.flush()
     this.notify()
   }
 
-  updateStep(id: string, patch: Partial<Pick<PlanStep, 'status' | 'result' | 'targetFeature' | 'task' | 'title'>>): void {
+  updateStep(id: string, patch: Partial<Pick<PlanStep, 'status' | 'result' | 'targetFeature' | 'task' | 'title' | 'changeIds'>>): void {
     this.state = {
       ...this.state,
       steps: this.state.steps.map((s) => (s.id === id ? { ...s, ...patch } : s)),
@@ -56,7 +58,8 @@ export class OrchestratorPlanStore extends Emitter<PlanState> {
   async switchTo(sessionId: string): Promise<void> {
     if (sessionId === this.state.sessionId) return
     await this.flush()
-    const steps = (await this.scope.get<PlanStep[]>(sessionId)) ?? []
+    const raw = (await this.scope.get<PlanStep[]>(sessionId)) ?? []
+    const steps = raw.map((s) => ({ ...s, changeIds: s.changeIds ?? [] }))
     this.state = { sessionId, steps }
     this.notify()
   }

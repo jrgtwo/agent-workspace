@@ -15,3 +15,12 @@
 .plan__body { flex: 1; }
 .plan__tag { font-size: 10px; padding: 0 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--text-muted); }
 .plan__result { margin-top: 3px; font-size: 11px; color: var(--text-muted); border-left: 2px solid var(--border); padding-left: 6px; }
+
+.preview { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.preview__head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.preview__title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
+.preview__body { flex: 1; min-height: 0; overflow: auto; }
+
+.plan__change { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; }
+.plan__change-summary { flex: 1; font-size: 0.82rem; }
+.plan__change-btns { display: flex; gap: 4px; }

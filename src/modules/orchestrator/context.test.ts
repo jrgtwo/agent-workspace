@@ -27,9 +27,9 @@ describe('describeOrchestratorContext', () => {
 
   it('renders the current plan steps with their statuses and targets', () => {
     const steps: PlanStep[] = [
-      { id: '1', title: 'Make board', targetFeature: 'kanban', task: 't', status: 'done' },
-      { id: '2', title: 'Add cards', targetFeature: 'kanban', task: 't', status: 'running' },
-      { id: '3', title: 'Summarize', targetFeature: 'notes', task: 't', status: 'pending' },
+      { id: '1', title: 'Make board', targetFeature: 'kanban', task: 't', status: 'done', changeIds: [] },
+      { id: '2', title: 'Add cards', targetFeature: 'kanban', task: 't', status: 'running', changeIds: [] },
+      { id: '3', title: 'Summarize', targetFeature: 'notes', task: 't', status: 'pending', changeIds: [] },
     ]
     const ctx = describeOrchestratorContext(fakePlan(steps), targets)
     expect(ctx).toMatch(/done/)

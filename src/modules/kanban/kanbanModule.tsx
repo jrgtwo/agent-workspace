@@ -2,11 +2,13 @@ import type { WorkspaceModule } from '../../core/types'
 import type { CardType } from './types'
 import type { KanbanStore } from './kanbanStore'
 import type { KanbanNavStore } from './kanbanNavStore'
+import type { ProposalStore } from '../../core/proposalStore'
+import type { ProposalApplier } from '../../core/proposalApplier'
 import { KanbanApp } from './KanbanApp'
 
 const NO_BOARD = { ok: false as const, message: 'No board is open. Open a board first.' }
 
-export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): WorkspaceModule {
+export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore, proposals: ProposalStore, applier: ProposalApplier): WorkspaceModule {
   const resource = 'kanban-board'
 
   return {
@@ -14,7 +16,7 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
     title: 'Board',
     locality: 'LOCAL',
     layoutHints: { defaultSize: 68, collapsible: false, minSize: 30 },
-    render: () => <KanbanApp store={store} nav={nav} />,
+    render: () => <KanbanApp store={store} nav={nav} proposals={proposals} applier={applier} />,
     tools: [
       {
         name: 'list_board',
@@ -46,8 +48,8 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
       {
         name: 'create_card',
         description:
-          'Add a card to a named column on the currently-open board. Use list_board first to see ' +
-          'the column names.',
+          'Propose adding a card to a named column on the currently-open board (shown as a pending ' +
+          'change awaiting your review). Use list_board first to see the column names.',
         parameters: {
           type: 'object',
           properties: {
@@ -63,46 +65,28 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
           },
           required: ['columnName', 'title'],
         },
-        permission: {
-          kind: 'write',
-          resource,
-          locality: 'LOCAL',
-          describe: (a) => {
-            const { title, columnName } = a as { title?: string; columnName?: string }
-            return `Add card "${title}" to ${columnName}?`
-          },
-        },
         handler: (a: { columnName: string; title: string; type?: CardType; notes?: string }) => {
           const scope = nav.activeScope()
           if (!scope) return NO_BOARD
           if (!a.title?.trim()) return { ok: false, error: '`title` is required.' }
           const cols = store.columnsForScope(scope)
-          const col = cols.find(
-            (c) => c.name.toLowerCase() === String(a.columnName ?? '').toLowerCase(),
-          )
+          const col = cols.find((c) => c.name.toLowerCase() === String(a.columnName ?? '').toLowerCase())
           if (!col) {
-            return {
-              ok: false,
-              error: `No column named "${a.columnName}". Columns: ${cols.map((c) => c.name).join(', ')}.`,
-            }
+            return { ok: false, error: `No column named "${a.columnName}". Columns: ${cols.map((c) => c.name).join(', ')}.` }
           }
-          const id = store.createCard(scope, col.id, {
-            title: a.title.trim(),
-            notes: a.notes,
-            type: a.type,
+          proposals.propose({
+            moduleId: 'kanban-board',
+            summary: `Add card "${a.title.trim()}" to ${col.name}`,
+            payload: { kind: 'create-card', scope, columnId: col.id, input: { title: a.title.trim(), notes: a.notes, type: a.type } },
           })
-          // Seed a sub-board's columns up front so it's usable as soon as it's opened.
-          if (a.type === 'subboard') {
-            store.ensureBoardColumns({ projectId: scope.projectId, parentCardId: id })
-          }
-          return { ok: true, id, message: `Added "${a.title.trim()}" to ${col.name}.` }
+          return { proposed: true, message: `Proposed "${a.title.trim()}" → ${col.name}; awaiting your review.` }
         },
       },
       {
         name: 'move_card',
         description:
-          'Move a card to a different column on the currently-open board. Identify the card by its ' +
-          'id (from list_board) or its exact title.',
+          'Propose moving a card to a different column on the currently-open board (shown as a ' +
+          'pending change awaiting your review). Identify the card by its id (from list_board) or its exact title.',
         parameters: {
           type: 'object',
           properties: {
@@ -113,60 +97,34 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
           },
           required: ['toColumnName'],
         },
-        permission: {
-          kind: 'write',
-          resource,
-          locality: 'LOCAL',
-          describe: (a) => {
-            const { cardTitle, cardId, toColumnName } = a as {
-              cardTitle?: string
-              cardId?: string
-              toColumnName?: string
-            }
-            return `Move card ${cardTitle ?? cardId} to ${toColumnName}?`
-          },
-        },
-        handler: (a: {
-          cardId?: string
-          cardTitle?: string
-          toColumnName: string
-          toIndex?: number
-        }) => {
+        handler: (a: { cardId?: string; cardTitle?: string; toColumnName: string; toIndex?: number }) => {
           const scope = nav.activeScope()
           if (!scope) return NO_BOARD
           const boardCards = store.cardsForScope(scope)
           let card = a.cardId ? boardCards.find((c) => c.id === a.cardId) : undefined
           if (!card && a.cardTitle) {
-            const matches = boardCards.filter(
-              (c) => c.title.toLowerCase() === String(a.cardTitle).toLowerCase(),
-            )
-            if (matches.length > 1) {
-              return { ok: false, error: `Multiple cards titled "${a.cardTitle}". Use cardId.` }
-            }
+            const matches = boardCards.filter((c) => c.title.toLowerCase() === String(a.cardTitle).toLowerCase())
+            if (matches.length > 1) return { ok: false, error: `Multiple cards titled "${a.cardTitle}". Use cardId.` }
             card = matches[0]
           }
           if (!card) return { ok: false, error: 'Card not found on the active board.' }
           const cols = store.columnsForScope(scope)
-          const col = cols.find(
-            (c) => c.name.toLowerCase() === String(a.toColumnName ?? '').toLowerCase(),
-          )
-          if (!col) {
-            return {
-              ok: false,
-              error: `No column named "${a.toColumnName}". Columns: ${cols.map((c) => c.name).join(', ')}.`,
-            }
-          }
-          const index =
-            typeof a.toIndex === 'number' ? a.toIndex : store.cardsInColumn(col.id).length
-          store.moveCard(card.id, col.id, index)
-          return { ok: true, message: `Moved "${card.title}" to ${col.name}.` }
+          const col = cols.find((c) => c.name.toLowerCase() === String(a.toColumnName ?? '').toLowerCase())
+          if (!col) return { ok: false, error: `No column named "${a.toColumnName}". Columns: ${cols.map((c) => c.name).join(', ')}.` }
+          const index = typeof a.toIndex === 'number' ? a.toIndex : store.cardsInColumn(col.id).length
+          proposals.propose({
+            moduleId: 'kanban-board',
+            summary: `Move "${card.title}" to ${col.name}`,
+            payload: { kind: 'move-card', cardId: card.id, toColumnId: col.id, toIndex: index },
+          })
+          return { proposed: true, message: `Proposed moving "${card.title}" → ${col.name}; awaiting your review.` }
         },
       },
       {
         name: 'create_board',
         description:
-          'Create a new board (a project) with the default columns (Backlog, In Progress, Review, ' +
-          'Done). Does NOT navigate to it; the user opens it from the boards list.',
+          'Propose creating a new board (a project) with the default columns (Backlog, In Progress, ' +
+          'Review, Done), shown as a pending change awaiting your review.',
         parameters: {
           type: 'object',
           properties: {
@@ -175,18 +133,15 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
           },
           required: ['name'],
         },
-        permission: {
-          kind: 'write',
-          // Distinct from the open-board 'kanban-board' resource: this creates a NEW board.
-          resource: 'board:new',
-          locality: 'LOCAL',
-          describe: (a) => `Create a new board "${(a as { name?: string }).name}"?`,
-        },
         handler: (a: { name: string; description?: string }) => {
           const name = a.name?.trim()
           if (!name) return { ok: false, error: '`name` is required.' }
-          const id = store.createProject({ name, description: a.description })
-          return { ok: true, id, message: `Created board "${name}".` }
+          proposals.propose({
+            moduleId: 'kanban-project',
+            summary: `Create board "${name}"`,
+            payload: { name, description: a.description },
+          })
+          return { proposed: true, message: `Proposed new board "${name}"; awaiting your review.` }
         },
       },
       {

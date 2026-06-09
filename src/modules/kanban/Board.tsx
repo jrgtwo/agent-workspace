@@ -2,20 +2,27 @@ import { useState } from 'react'
 import { useStore } from '../../core/emitter'
 import type { KanbanStore } from './kanbanStore'
 import type { KanbanNavStore } from './kanbanNavStore'
+import type { ProposalStore } from '../../core/proposalStore'
+import type { ProposalApplier } from '../../core/proposalApplier'
 import type { Card, Scope } from './types'
 import { BoardColumn } from './BoardColumn'
 import { AddColumn } from './AddColumn'
 import { Breadcrumb } from './Breadcrumb'
 import { CardEditor } from './CardEditor'
+import { PendingReview } from '../proposals/PendingReview'
 
 export function Board({
   store,
   nav,
   scope,
+  proposals,
+  applier,
 }: {
   store: KanbanStore
   nav: KanbanNavStore
   scope: Scope
+  proposals: ProposalStore
+  applier: ProposalApplier
 }) {
   useStore(store) // re-render on any board change
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -46,6 +53,7 @@ export function Board({
 
   return (
     <div className="kanban-board">
+      <PendingReview proposals={proposals} applier={applier} moduleId="kanban-board" />
       <header className="kanban-board__head">
         <button className="kanban-back" onClick={() => nav.openProjects()}>
           ← Boards

@@ -13,6 +13,7 @@ import type { AgentEngine } from '../core/agentEngine'
 import type { PermissionBroker } from '../core/permissionBroker'
 import type { MemoryStore } from '../core/memoryStore'
 import type { ProposalStore } from '../core/proposalStore'
+import type { ProposalApplier } from '../core/proposalApplier'
 
 export function createNotesFeature(deps: {
   docStore: DocEditorStore
@@ -21,14 +22,15 @@ export function createNotesFeature(deps: {
   broker: PermissionBroker
   memory: MemoryStore
   proposals: ProposalStore
+  applier: ProposalApplier
   accent: AgentAccentStore
   saveImage?: (file: File) => Promise<string>
 }): FeatureManifest {
-  const explorer = createDocumentExplorerModule(deps.library)
+  const explorer = createDocumentExplorerModule(deps.library, deps.proposals, deps.applier)
   const chat = createAiChatModule(deps.engine, deps.broker, deps.accent)
   // const perms = createPermissionPromptModule(deps.broker)
   // const memory = createMemoryViewerModule(deps.memory)
-  const editor = createDocEditorModule(deps.docStore, deps.proposals, { saveImage: deps.saveImage, library: deps.library })
+  const editor = createDocEditorModule(deps.docStore, deps.proposals, { applier: deps.applier, saveImage: deps.saveImage, library: deps.library })
   return {
     id: 'notes', name: 'Notes', icon: '📝',
     modules: [explorer, chat, /*perms, memory,*/ editor],

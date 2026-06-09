@@ -30,9 +30,9 @@ describe('orchestrator end-to-end (scripted)', () => {
     const backend = new MemoryBackend()
     const services = await createServices({ client: scripted(), backend })
 
-    // Auto-allow any permission prompt the subagent raises (create_board/create_card are writes).
-    services.broker.subscribe(() => {
-      for (const r of services.broker.getState().pending) services.broker.allow(r.id)
+    // Auto-accept any proposals the subagent enqueues (create_board/create_card now propose).
+    services.proposals.subscribe(() => {
+      for (const p of services.proposals.getState().pending) services.applier.accept(p)
     })
 
     await services.orchestratorEngine.run('Set up a launch board')

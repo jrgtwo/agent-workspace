@@ -2,6 +2,7 @@ import { LayoutStore } from '../core/layoutStore'
 import { PermissionBroker } from '../core/permissionBroker'
 import { MemoryStore } from '../core/memoryStore'
 import { ProposalStore } from '../core/proposalStore'
+import { ProposalApplier } from '../core/proposalApplier'
 import { LlamaClient } from '../core/llamaClient'
 import { Registry } from '../core/registry'
 import { AgentEngine } from '../core/agentEngine'
@@ -17,6 +18,7 @@ import { createBoardFeature } from '../features/board'
 import { createOrchestratorFeature } from '../features/orchestrator'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
 import { OrchestratorPlanStore } from '../modules/orchestrator/planStore'
+import { PreviewStore } from '../modules/orchestrator/previewStore'
 import { createOrchestratorTools, type FeatureAgentRegistry } from '../modules/orchestrator/orchestratorTools'
 import { describeOrchestratorContext } from '../modules/orchestrator/context'
 import { KanbanStore } from '../modules/kanban/kanbanStore'
@@ -35,21 +37,28 @@ const genId = () => `id-${++seq}`
 const NOTES_PROMPT =
   'You are a local, privacy-first writing assistant embedded in a notes app. ' +
   "You help with the user's documents: read and edit the active document, create new documents, " +
-  'and remember durable facts — but every read/write/create requires explicit user permission via ' +
-  'tools. Your tools are: read_document, propose_edit, append_document, create_document, remember — ' +
-  'you have no others. Prefer reading the document before editing. To add new content to a document ' +
+  'and remember durable facts. Your tools are: read_document, propose_edit, append_document, ' +
+  'create_document, remember — you have no others. Reading the document asks the user for permission ' +
+  'first. Your edits do NOT apply immediately: propose_edit, append_document, and create_document are ' +
+  'PROPOSED as pending changes the user reviews and accepts or rejects in the UI (there is no separate ' +
+  'permission popup for them, and nothing changes until the user accepts) — so just call the tool and ' +
+  'let the user decide. Prefer reading the document before editing. To add new content to a document ' +
   '(or write into an empty one), use append_document; use propose_edit only to change existing text. ' +
-  'If the user denies an action, stop and explain — do not retry the same action. When you learn a ' +
-  'durable preference about the user, call the remember tool.'
+  'If the user rejects a proposal or denies a read, stop and explain — do not retry the same action. ' +
+  'When you learn a durable preference about the user, call the remember tool.'
 
 const BOARD_PROMPT =
   'You are a local, privacy-first assistant embedded in a kanban board app. ' +
   'You help the user manage the currently-open board: list it, create and move cards, and create new ' +
-  'boards — every action requires explicit user permission via tools. Your tools are: list_board, ' +
-  'create_card, move_card, create_board, open_board, remember — you have no others. Use list_board to ' +
-  'see column names before creating or moving cards. To add cards inside a sub-board, call open_board ' +
-  'with subboard:"<title>" first. If the user denies an action, stop and explain — do not retry the ' +
-  'same action. When you learn a durable preference about the user, call the remember tool.'
+  'boards. Your tools are: list_board, create_card, move_card, create_board, open_board, remember — ' +
+  'you have no others. Listing the board asks the user for permission first. Your changes do NOT apply ' +
+  'immediately: create_card, move_card, and create_board are PROPOSED as pending changes the user ' +
+  'reviews and accepts or rejects in the UI (no separate permission popup, and nothing changes until ' +
+  'the user accepts) — so just call the tool and let the user decide. Use list_board to see column ' +
+  'names before creating or moving cards. To add cards inside a sub-board, call open_board with ' +
+  'subboard:"<title>" first (open_board only navigates — no permission and no proposal). If the user ' +
+  'rejects a proposal or denies a read, stop and explain — do not retry the same action. When you ' +
+  'learn a durable preference about the user, call the remember tool.'
 
 const ORCHESTRATOR_PROMPT =
   'You are the orchestrator: a helpful, conversational assistant that coordinates work across the app. ' +
@@ -75,10 +84,12 @@ export interface AppServices {
   docStore: DocEditorStore
   library: DocumentLibraryStore
   proposals: ProposalStore
+  applier: ProposalApplier
   theme: ThemeStore
   agentAccent: AgentAccentStore
   kanban: KanbanStore
   kanbanNav: KanbanNavStore
+  preview: PreviewStore
 }
 
 export interface CreateServicesOpts {
@@ -93,9 +104,13 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const broker = new PermissionBroker(genId)
   const memory = new MemoryStore(genId)
   const proposals = new ProposalStore(genId)
+  const preview = new PreviewStore()
   const theme = new ThemeStore()
   const agentAccent = new AgentAccentStore()
   const docStore = new DocEditorStore('Untitled.md', '')
+  const applier = new ProposalApplier(proposals)
+  applier.register('doc-editor', (c) => docStore.applyChange(c.payload as { find: string; replace: string }))
+  applier.register('doc-editor-append', (c) => { docStore.appendText((c.payload as { text: string }).text); return true })
 
   const env = import.meta.env as unknown as Record<string, string | undefined>
   const baseUrl = env.VITE_LLAMA_URL ?? 'http://localhost:8080/v1'
@@ -112,6 +127,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   // the active document into docStore. Memory/theme/accent persist via the declarative helper.
   const library = new DocumentLibraryStore(docStore, storage.scope('doc-editor'), genId)
   await library.init()
+  applier.register('doc-library', (c) => { void library.create((c.payload as { name?: string }).name); return true })
   await persistState(memory, storage.scope('memory'), 'entries')
   await persistState(theme, storage.scope('theme'), 'state')
   await persistState(agentAccent, storage.scope('ai-chat'), 'agent-accent')
@@ -123,6 +139,12 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const kanban = new KanbanStore(kanbanId)
   const kanbanNav = new KanbanNavStore()
   await persistState(kanban, storage.scope('kanban'), 'state')
+  applier.register('kanban-board', (c) => kanban.applyProposal(c.payload as import('../modules/kanban/types').KanbanProposalPayload))
+  applier.register('kanban-project', (c) => {
+    const p = c.payload as { name: string; description?: string }
+    kanban.createProject({ name: p.name, description: p.description })
+    return true
+  })
 
   // Inject live state into each feature agent's system prompt every run, so it knows the active
   // document / open board (and which sub-boards exist) instead of guessing.
@@ -137,10 +159,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     return id
   }
 
-  const notes = createNotesFeature({ docStore, library, engine: notesEngine, broker, memory, proposals, accent: agentAccent, saveImage })
+  const notes = createNotesFeature({ docStore, library, engine: notesEngine, broker, memory, proposals, applier, accent: agentAccent, saveImage })
   const styleguide = createStyleGuideFeature()
   const settings = createSettingsFeature({ theme, memory })
-  const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent })
+  const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent, proposals, applier })
 
   // Register each feature's tools into ITS OWN registry, plus the global `remember` tool into both
   // (memory is workspace-wide; Settings has no agent so we register `remember` explicitly).
@@ -167,13 +189,19 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   orchestratorEngine.setContextProvider(() => describeOrchestratorContext(planStore, featureAgents))
 
   const orchestratorTools = createOrchestratorTools({
-    plan: planStore, featureAgents, client, broker, surfaceId: 'orchestrator',
+    plan: planStore, featureAgents, client, broker, surfaceId: 'orchestrator', proposals, preview,
   })
   orchestratorRegistry.register(orchestratorTools)
   orchestratorRegistry.register(memoryModule.tools)
 
+  const previewRenderers = {
+    notes: notes.modules.find((m) => m.id === 'doc-editor')!.render,
+    kanban: board.modules.find((m) => m.id === 'kanban-board')!.render,
+  }
+
   const orchestrator = createOrchestratorFeature({
     engine: orchestratorEngine, broker, accent: agentAccent, sessions: sessionStore, plan: planStore,
+    proposals, applier, preview, previewRenderers,
   })
 
   await createFeatureChatController({
@@ -191,6 +219,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     void planStore.pruneExcept(st.sessions.map((s) => s.id))
     if (st.activeId !== lastSession) {
       lastSession = st.activeId
+      preview.focus(null) // each session starts with an empty preview until it delegates
       void planStore.switchTo(st.activeId)
     }
   })
@@ -221,5 +250,5 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, orchestrator], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, theme, agentAccent, kanban, kanbanNav }
+  return { features: [notes, styleguide, settings, board, orchestrator], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview }
 }

@@ -4,27 +4,34 @@ import type { DocEditorStore } from './docEditorStore'
 import type { ProposalStore } from '../../core/proposalStore'
 import type { DocumentLibraryStore } from './documentLibraryStore'
 import { ReviewPanel } from './docEditorReview'
-import type { DocEditPayload } from './diff/types'
+import type { DocEditPayload, DocAppendPayload } from './diff/types'
 import { countOccurrences } from './diff/blocks'
 import { MilkdownEditor } from './milkdownEditor'
+import { PendingReview } from '../proposals/PendingReview'
+import type { ProposalApplier } from '../../core/proposalApplier'
 
-function DocEditorPanel({ store, proposals, saveImage }: { store: DocEditorStore; proposals: ProposalStore; saveImage?: (file: File) => Promise<string> }) {
+function DocEditorPanel({ store, proposals, applier, saveImage }: { store: DocEditorStore; proposals: ProposalStore; applier: ProposalApplier; saveImage?: (file: File) => Promise<string> }) {
   const { text } = useStore(store)
   const { pending } = useStore(proposals)
   const mine = pending.filter((c) => c.moduleId === 'doc-editor')
 
   if (mine.length === 0) {
-    return <MilkdownEditor store={store} saveImage={saveImage} />
+    return (
+      <>
+        <PendingReview proposals={proposals} applier={applier} moduleId="doc-editor-append" />
+        <MilkdownEditor store={store} saveImage={saveImage} />
+      </>
+    )
   }
 
   return (
     <ReviewPanel
       text={text}
       changes={mine}
-      onAccept={(c) => { if (store.applyChange(c.payload as DocEditPayload)) proposals.remove(c.id) }}
-      onReject={(c) => proposals.remove(c.id)}
-      onAcceptAll={() => { for (const c of [...mine]) { if (store.applyChange(c.payload as DocEditPayload)) proposals.remove(c.id) } }}
-      onRejectAll={() => { for (const c of [...mine]) proposals.remove(c.id) }}
+      onAccept={(c) => applier.accept(c)}
+      onReject={(c) => applier.reject(c)}
+      onAcceptAll={() => { for (const c of [...mine]) applier.accept(c) }}
+      onRejectAll={() => { for (const c of [...mine]) applier.reject(c) }}
     />
   )
 }
@@ -32,10 +39,11 @@ function DocEditorPanel({ store, proposals, saveImage }: { store: DocEditorStore
 export function createDocEditorModule(
   store: DocEditorStore,
   proposals: ProposalStore,
-  deps?: { saveImage?: (file: File) => Promise<string>; library?: DocumentLibraryStore },
+  deps: { applier: ProposalApplier; saveImage?: (file: File) => Promise<string>; library?: DocumentLibraryStore },
 ): WorkspaceModule {
-  const saveImage = deps?.saveImage
-  const library = deps?.library
+  const saveImage = deps.saveImage
+  const library = deps.library
+  const applier = deps.applier
   const resource = `document:${store.getState().name}`
 
   const tools: ToolDef[] = [
@@ -76,29 +84,27 @@ export function createDocEditorModule(
     {
       name: 'append_document',
       description:
-        'Append a block of markdown to the END of the current document. Use this to ADD new content — ' +
-        'including writing the first content into an empty document (propose_edit cannot, since it needs ' +
-        'existing text to match). For changing EXISTING text, use propose_edit instead.',
+        'Propose appending a block of markdown to the END of the current document. Use this to ADD new ' +
+        'content — including writing the first content into an empty document (propose_edit cannot, since ' +
+        'it needs existing text to match). For changing EXISTING text, use propose_edit instead. The ' +
+        'append is shown to the user as a pending change to accept or reject; it is NOT applied until they accept.',
       parameters: {
         type: 'object',
-        properties: { text: { type: 'string', description: 'Markdown to append.' } },
+        properties: {
+          text: { type: 'string', description: 'Markdown to append.' },
+          reason: { type: 'string', description: 'One short sentence: why this content is added.' },
+        },
         required: ['text'],
       },
-      permission: {
-        kind: 'write',
-        resource,
-        locality: 'LOCAL',
-        describe: (a) => {
-          const text = (a as { text?: string })?.text ?? ''
-          const preview = text.length > 60 ? text.slice(0, 60) + '…' : text
-          return `Add to ${store.getState().name}: "${preview}"?`
-        },
-      },
-      handler: (a: { text: string }) => {
-        const current = store.getState().text
-        const next = current.trim() ? `${current.trimEnd()}\n\n${a.text}` : a.text
-        store.setText(next)
-        return { appended: true }
+      handler: (a: { text: string; reason?: string }) => {
+        if (!a.text?.trim()) return { proposed: false, error: '`text` must not be empty.' }
+        const preview = a.text.length > 60 ? a.text.slice(0, 60) + '…' : a.text
+        proposals.propose({
+          moduleId: 'doc-editor-append',
+          summary: `Append to ${store.getState().name}: "${preview}"`,
+          payload: { text: a.text, reason: a.reason ?? 'Add new content.' } satisfies DocAppendPayload,
+        })
+        return { proposed: true, message: 'Proposed append; awaiting your review.' }
       },
     },
   ]
@@ -107,18 +113,18 @@ export function createDocEditorModule(
     tools.push({
       name: 'create_document',
       description:
-        'Create a new, empty document and make it the active document. Optionally provide a file name (e.g. "Plan.md"); defaults to Untitled.md.',
+        'Propose creating a new, empty document. Optionally provide a file name (e.g. "Plan.md"); ' +
+        'defaults to Untitled.md. Shown to the user as a pending change; the document is not created ' +
+        'until they accept.',
       parameters: { type: 'object', properties: { name: { type: 'string' } } },
-      permission: {
-        kind: 'write',
-        resource: 'document:new',
-        locality: 'LOCAL',
-        describe: (args: unknown) => `Create a new document "${(args as { name?: string })?.name ?? 'Untitled.md'}"?`,
-      },
-      handler: async (a: { name?: string }) => {
+      handler: (a: { name?: string }) => {
         const name = a?.name ?? 'Untitled.md'
-        await library.create(a?.name)
-        return { created: true, name }
+        proposals.propose({
+          moduleId: 'doc-library',
+          summary: `Create document "${name}"`,
+          payload: { name: a?.name },
+        })
+        return { proposed: true, message: `Proposed new document "${name}"; awaiting your review.` }
       },
     })
   }
@@ -128,7 +134,7 @@ export function createDocEditorModule(
     title: `Document — ${store.getState().name}`,
     locality: 'LOCAL',
     layoutHints: { defaultSize: 60, collapsible: false, minSize: 30 },
-    render: () => <DocEditorPanel store={store} proposals={proposals} saveImage={saveImage} />,
+    render: () => <DocEditorPanel store={store} proposals={proposals} applier={applier} saveImage={saveImage} />,
     tools,
   }
 }

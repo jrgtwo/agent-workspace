@@ -55,3 +55,10 @@ export interface KanbanState {
   columns: Column[]
   cards: Card[]
 }
+
+import type { CreateCardInput } from './kanbanStore'
+
+/** A pending kanban write, applied on Accept. */
+export type KanbanProposalPayload =
+  | { kind: 'create-card'; scope: Scope; columnId: string; input: CreateCardInput }
+  | { kind: 'move-card'; cardId: string; toColumnId: string; toIndex: number }

@@ -8,3 +8,9 @@ export interface DocEditPayload {
   /** One-line rationale the agent supplies for why this edit is proposed. */
   reason: string
 }
+
+/** Payload the append_document tool enqueues — appended markdown plus a rationale. */
+export interface DocAppendPayload {
+  text: string
+  reason: string
+}

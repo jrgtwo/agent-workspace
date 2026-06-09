@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { LlamaClient } from './llamaClient'
+import { LlamaClient, estimatePromptSize } from './llamaClient'
+import type { ChatMessage, ToolDef } from './types'
 
 function sseStream(chunks: string[]): ReadableStream<Uint8Array> {
   const enc = new TextEncoder()
@@ -11,6 +12,32 @@ function sseStream(chunks: string[]): ReadableStream<Uint8Array> {
     },
   })
 }
+
+describe('estimatePromptSize', () => {
+  it('counts messages, tools, total chars, and an approximate token count (~chars/4)', () => {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: 'You are helpful.' },
+      { role: 'user', content: 'hello there' },
+    ]
+    const tools: ToolDef[] = [
+      { name: 'noop', description: 'no-op', parameters: { type: 'object', properties: {} }, handler: () => null },
+    ]
+
+    const size = estimatePromptSize(messages, tools)
+
+    expect(size.messages).toBe(2)
+    expect(size.tools).toBe(1)
+    const expectedChars = JSON.stringify(messages).length + JSON.stringify(tools).length
+    expect(size.chars).toBe(expectedChars)
+    expect(size.approxTokens).toBe(Math.ceil(expectedChars / 4))
+  })
+
+  it('reports zero tool chars when there are no tools', () => {
+    const size = estimatePromptSize([{ role: 'user', content: 'hi' }], [])
+    expect(size.tools).toBe(0)
+    expect(size.chars).toBe(JSON.stringify([{ role: 'user', content: 'hi' }]).length)
+  })
+})
 
 describe('LlamaClient', () => {
   it('uses the global fetch when no fetchImpl is injected, without an illegal-invocation error', async () => {

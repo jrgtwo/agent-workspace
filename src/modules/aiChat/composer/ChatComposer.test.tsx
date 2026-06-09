@@ -13,4 +13,8 @@ describe('ChatComposer buttons', () => {
     render(<ChatComposer busy={false} onSend={vi.fn()} onStop={vi.fn()} />)
     expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument()
   })
+  it('renders the context-size meter when provided', () => {
+    render(<ChatComposer busy={false} onSend={vi.fn()} onStop={vi.fn()} meter="~2,108 tokens" />)
+    expect(screen.getByText('~2,108 tokens')).toBeInTheDocument()
+  })
 })

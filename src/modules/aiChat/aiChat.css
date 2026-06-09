@@ -126,7 +126,9 @@
   padding: var(--space-3); box-shadow: var(--shadow-md); }
 
 /* composer */
-.chat-composer { display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); }
+.chat-composer { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); }
+.chat-composer__row { display: flex; align-items: flex-end; gap: var(--space-2); }
+.chat-composer__meter { align-self: flex-end; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; user-select: none; }
 .chat-composer__field { flex: 1; max-height: 160px; overflow: auto; background: var(--surface-2);
   border: 1px solid var(--border-strong); border-radius: var(--radius-panel); padding: var(--space-2) var(--space-3); }
 .chat-composer__field:focus-within { border-color: var(--accent); box-shadow: var(--glow-accent); }

@@ -10,6 +10,10 @@ interface Props {
   busy: boolean
   onSend: (markdown: string) => void
   onStop: () => void
+  /** Optional live context-size label (e.g. "~2,108 tokens") shown under the input. */
+  meter?: string
+  /** Tooltip detail for the meter (e.g. "14 messages · 8,432 chars"). */
+  meterTitle?: string
 }
 
 export function ComposerButtons({
@@ -42,7 +46,7 @@ export function ComposerButtons({
   )
 }
 
-function ComposerInner({ busy, onSend, onStop }: Props) {
+function ComposerInner({ busy, onSend, onStop, meter, meterTitle }: Props) {
   const mdRef = useRef('')
   const busyRef = useRef(busy)
   busyRef.current = busy
@@ -88,10 +92,17 @@ function ComposerInner({ busy, onSend, onStop }: Props) {
 
   return (
     <div className="chat-composer">
-      <div className="chat-composer__field">
-        <Milkdown />
+      <div className="chat-composer__row">
+        <div className="chat-composer__field">
+          <Milkdown />
+        </div>
+        <ComposerButtons busy={busy} onSend={onSendClick} onStop={onStop} />
       </div>
-      <ComposerButtons busy={busy} onSend={onSendClick} onStop={onStop} />
+      {meter && (
+        <div className="chat-composer__meter" title={meterTitle}>
+          {meter}
+        </div>
+      )}
     </div>
   )
 }

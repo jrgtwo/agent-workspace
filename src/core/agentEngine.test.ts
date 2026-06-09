@@ -162,6 +162,22 @@ describe('AgentEngine steering', () => {
     expect(engine.getState().busy).toBe(false)
   })
 
+  it('promptSize reports the size of the messages + tools it would send', () => {
+    const registry = new Registry()
+    registry.register([{ name: 't', description: 'd', parameters: { type: 'object', properties: {} }, handler: () => null }])
+    const engine = new AgentEngine({ chat: vi.fn() } as never, registry, new PermissionBroker(() => 'p'))
+    engine.hydrateMessages([
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'hello' },
+    ])
+
+    const size = engine.promptSize()
+
+    expect(size.messages).toBe(2)
+    expect(size.tools).toBe(1)
+    expect(size.approxTokens).toBeGreaterThan(0)
+  })
+
   it('appends live context-provider output to the system prompt sent to the model, without bloating history', async () => {
     const seen: ChatMessage[][] = []
     const client = {

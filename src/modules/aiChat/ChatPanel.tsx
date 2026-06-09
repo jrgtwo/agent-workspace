@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { useStore } from '../../core/emitter'
 import type { AgentEngine } from '../../core/agentEngine'
 import type { PermissionBroker } from '../../core/permissionBroker'
@@ -43,6 +43,12 @@ export function ChatPanel({ engine, broker, accent }: { engine: AgentEngine; bro
 
   const send = (markdown: string) => { stick.current = true; void engine.run(markdown) }
 
+  // Live gauge of the prompt this chat would send — grows with the conversation, so the user can
+  // watch context creep toward the model's window. Recomputed when the message list changes.
+  const size = useMemo(() => engine.promptSize(), [engine, messages])
+  const meter = `~${size.approxTokens.toLocaleString()} tokens`
+  const meterTitle = `${size.messages} messages · ${size.tools} tools · ${size.chars.toLocaleString()} chars`
+
   return (
     <div className="chat" style={accentStyle}>
       <div className="chat__titlebar"><span className="chat__dot" /> agent — chat <span className="chat__tag">● local</span></div>
@@ -65,7 +71,7 @@ export function ChatPanel({ engine, broker, accent }: { engine: AgentEngine; bro
       {popups.length > 0 && (
         <PermissionRequest req={popups[0]} onAllow={(id) => broker.allow(id)} onDeny={(id) => broker.deny(id)} />
       )}
-      <ChatComposer busy={busy} onSend={send} onStop={() => engine.stop()} />
+      <ChatComposer busy={busy} onSend={send} onStop={() => engine.stop()} meter={meter} meterTitle={meterTitle} />
       <StatusBar busy={busy} pendingCount={mine.length} />
     </div>
   )

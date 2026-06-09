@@ -2,6 +2,18 @@ import type { ChatMessage, ToolCall, ToolDef } from './types'
 
 export interface ChatResult { content: string; toolCalls: ToolCall[] }
 
+export interface PromptSize { messages: number; tools: number; chars: number; approxTokens: number }
+
+/**
+ * A rough gauge of how big the outgoing prompt is, for watching context growth on small models.
+ * `approxTokens` uses the usual ~4-chars-per-token heuristic — close enough to spot when a
+ * conversation is creeping toward the server's context window.
+ */
+export function estimatePromptSize(messages: ChatMessage[], tools: ToolDef[]): PromptSize {
+  const chars = JSON.stringify(messages).length + (tools.length ? JSON.stringify(tools).length : 0)
+  return { messages: messages.length, tools: tools.length, chars, approxTokens: Math.ceil(chars / 4) }
+}
+
 interface ToolCallAccum { id: string; name: string; arguments: string }
 
 export class LlamaClient {
@@ -27,7 +39,13 @@ export class LlamaClient {
     tools: ToolDef[],
     onToken: (t: string) => void,
     signal?: AbortSignal,
+    label?: string,
   ): Promise<ChatResult> {
+    const size = estimatePromptSize(messages, tools)
+    console.debug(
+      `[llama] ${label ?? this.model} → ${size.messages} msgs, ${size.tools} tools, ` +
+        `${size.chars.toLocaleString()} chars (~${size.approxTokens.toLocaleString()} tokens)`,
+    )
     let res: Response
     // Detach from `this`: the native browser `fetch` throws "Illegal invocation" when
     // called as a method (this !== window). A local binding calls it with this=undefined.

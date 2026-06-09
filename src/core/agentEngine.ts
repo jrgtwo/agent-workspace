@@ -5,7 +5,6 @@ import type { PermissionBroker } from './permissionBroker'
 import type { ChatMessage, ToolCall } from './types'
 
 interface AgentState { messages: ChatMessage[]; streaming: string; busy: boolean }
-const MAX_ITERS = 5
 
 export class AgentEngine extends Emitter<AgentState> {
   private state: AgentState = { messages: [], streaming: '', busy: false }
@@ -13,14 +12,16 @@ export class AgentEngine extends Emitter<AgentState> {
   private registry: Registry
   private broker: PermissionBroker
   readonly surfaceId: string
+  private maxIters: number
   private controller: AbortController | null = null
 
-  constructor(client: Pick<LlamaClient, 'chat'>, registry: Registry, broker: PermissionBroker, surfaceId = 'agent') {
+  constructor(client: Pick<LlamaClient, 'chat'>, registry: Registry, broker: PermissionBroker, surfaceId = 'agent', maxIters = 5) {
     super()
     this.client = client
     this.registry = registry
     this.broker = broker
     this.surfaceId = surfaceId
+    this.maxIters = maxIters
   }
 
   getState = (): AgentState => this.state
@@ -57,7 +58,7 @@ export class AgentEngine extends Emitter<AgentState> {
     this.controller = controller
 
     try {
-      for (let iter = 0; iter < MAX_ITERS; iter++) {
+      for (let iter = 0; iter < this.maxIters; iter++) {
         let streamed = ''
         const result = await this.client.chat(this.state.messages, this.registry.all(), (tok) => {
           streamed += tok

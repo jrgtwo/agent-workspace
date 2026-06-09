@@ -73,6 +73,34 @@ export function createDocEditorModule(
         return { proposed: true, message: 'Proposed edit; awaiting your review.' }
       },
     },
+    {
+      name: 'append_document',
+      description:
+        'Append a block of markdown to the END of the current document. Use this to ADD new content — ' +
+        'including writing the first content into an empty document (propose_edit cannot, since it needs ' +
+        'existing text to match). For changing EXISTING text, use propose_edit instead.',
+      parameters: {
+        type: 'object',
+        properties: { text: { type: 'string', description: 'Markdown to append.' } },
+        required: ['text'],
+      },
+      permission: {
+        kind: 'write',
+        resource,
+        locality: 'LOCAL',
+        describe: (a) => {
+          const text = (a as { text?: string })?.text ?? ''
+          const preview = text.length > 60 ? text.slice(0, 60) + '…' : text
+          return `Add to ${store.getState().name}: "${preview}"?`
+        },
+      },
+      handler: (a: { text: string }) => {
+        const current = store.getState().text
+        const next = current.trim() ? `${current.trimEnd()}\n\n${a.text}` : a.text
+        store.setText(next)
+        return { appended: true }
+      },
+    },
   ]
 
   if (library) {

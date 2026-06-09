@@ -14,6 +14,10 @@ import { createNotesFeature } from '../features/notes'
 import { createStyleGuideFeature } from '../features/styleguide'
 import { createSettingsFeature } from '../features/settings'
 import { createBoardFeature } from '../features/board'
+import { createOrchestratorFeature } from '../features/orchestrator'
+import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
+import { OrchestratorPlanStore } from '../modules/orchestrator/planStore'
+import { createOrchestratorTools, type FeatureAgentRegistry } from '../modules/orchestrator/orchestratorTools'
 import { KanbanStore } from '../modules/kanban/kanbanStore'
 import { KanbanNavStore } from '../modules/kanban/kanbanNavStore'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
@@ -30,7 +34,8 @@ const NOTES_PROMPT =
   "You help with the user's documents: read and edit the active document, create new documents, " +
   'and remember durable facts — but every read/write/create requires explicit user permission via ' +
   'tools. Prefer reading the document before editing. When you learn a durable preference about the ' +
-  'user, call the remember tool.'
+  'user, call the remember tool. To add new content to a document (or write into an empty one), use ' +
+  'append_document; use propose_edit only to change existing text.'
 
 const BOARD_PROMPT =
   'You are a local, privacy-first assistant embedded in a kanban board app. ' +
@@ -39,6 +44,13 @@ const BOARD_PROMPT =
   'names before creating or moving cards. When you learn a durable preference about the user, call ' +
   'the remember tool.'
 
+const ORCHESTRATOR_PROMPT =
+  'You are the orchestrator: a helpful, conversational assistant that coordinates work across the app. ' +
+  'When a request needs action, keep a plan with update_plan and carry out each step with delegate, which ' +
+  'runs a focused subagent that has only that feature\'s tools and reports back. Pass any context a ' +
+  'subagent needs inside its task (subagents cannot see this conversation). Just chat normally when no ' +
+  'action is needed. When you learn a durable preference about the user, call remember.'
+
 export interface AppServices {
   features: FeatureManifest[]
   layoutStores: Map<string, LayoutStore>
@@ -46,6 +58,9 @@ export interface AppServices {
   memory: MemoryStore
   notesEngine: AgentEngine
   boardEngine: AgentEngine
+  orchestratorEngine: AgentEngine
+  sessionStore: OrchestratorSessionStore
+  planStore: OrchestratorPlanStore
   docStore: DocEditorStore
   library: DocumentLibraryStore
   proposals: ProposalStore
@@ -119,6 +134,49 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   notesRegistry.register(memoryModule.tools)
   boardRegistry.register(memoryModule.tools)
 
+  // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
+  const orchestratorRegistry = new Registry()
+  const orchestratorEngine = new AgentEngine(client, orchestratorRegistry, broker, 'orchestrator', 25)
+
+  const featureAgents: FeatureAgentRegistry = new Map([
+    ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry }],
+    ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry }],
+  ])
+
+  const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), genId)
+  await sessionStore.init()
+  const planStore = new OrchestratorPlanStore(storage.scope('orchestrator-plan'), kanbanId)
+  await planStore.init(sessionStore.getState().activeId)
+
+  const orchestratorTools = createOrchestratorTools({
+    plan: planStore, featureAgents, client, broker, surfaceId: 'orchestrator',
+  })
+  orchestratorRegistry.register(orchestratorTools)
+  orchestratorRegistry.register(memoryModule.tools)
+
+  const orchestrator = createOrchestratorFeature({
+    engine: orchestratorEngine, broker, accent: agentAccent, sessions: sessionStore, plan: planStore,
+  })
+
+  await createFeatureChatController({
+    engine: orchestratorEngine,
+    scope: storage.scope('orchestrator-chat'),
+    systemPrompt: ORCHESTRATOR_PROMPT,
+    getKey: () => sessionStore.getState().activeId,
+    source: sessionStore,
+    listValidKeys: () => sessionStore.getState().sessions.map((s) => s.id),
+  })
+
+  let lastSession = sessionStore.getState().activeId
+  sessionStore.subscribe(() => {
+    const st = sessionStore.getState()
+    void planStore.pruneExcept(st.sessions.map((s) => s.id))
+    if (st.activeId !== lastSession) {
+      lastSession = st.activeId
+      void planStore.switchTo(st.activeId)
+    }
+  })
+
   // Per-context chat threads. Notes = one thread per document (keyed by doc id), pruned when a
   // document is deleted. Board = one thread per project (keyed by project id), '__projects__' on
   // the boards-list view. Each controller hydrates the active thread + seeds the feature prompt.
@@ -139,11 +197,11 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   })
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings, board]) {
+  for (const feature of [notes, styleguide, settings, board, orchestrator]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board], layoutStores, broker, memory, notesEngine, boardEngine, docStore, library, proposals, theme, agentAccent, kanban, kanbanNav }
+  return { features: [notes, styleguide, settings, board, orchestrator], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, theme, agentAccent, kanban, kanbanNav }
 }

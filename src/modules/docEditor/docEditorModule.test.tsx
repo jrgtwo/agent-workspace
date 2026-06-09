@@ -109,4 +109,29 @@ describe('docEditorModule', () => {
     const mod = createDocEditorModule(store, proposals)
     expect(mod.tools.find((t) => t.name === 'create_document')).toBeUndefined()
   })
+
+  it('append_document is a broker-gated write', () => {
+    const store = new DocEditorStore('Untitled.md', '')
+    const proposals = new ProposalStore(() => 'c-1')
+    const append = createDocEditorModule(store, proposals).tools.find((t) => t.name === 'append_document')!
+    expect(append.permission?.kind).toBe('write')
+    expect(append.permission?.locality).toBe('LOCAL')
+  })
+
+  it('append_document writes initial content into an empty document', async () => {
+    const store = new DocEditorStore('Untitled.md', '')
+    const proposals = new ProposalStore(() => 'c-1')
+    const append = createDocEditorModule(store, proposals).tools.find((t) => t.name === 'append_document')!
+    const res = await append.handler({ text: '# Housework\n- mop' })
+    expect(res).toMatchObject({ appended: true })
+    expect(store.getState().text).toBe('# Housework\n- mop')
+  })
+
+  it('append_document appends to existing content separated by a blank line', async () => {
+    const store = new DocEditorStore('Untitled.md', 'Intro')
+    const proposals = new ProposalStore(() => 'c-1')
+    const append = createDocEditorModule(store, proposals).tools.find((t) => t.name === 'append_document')!
+    await append.handler({ text: 'More' })
+    expect(store.getState().text).toBe('Intro\n\nMore')
+  })
 })

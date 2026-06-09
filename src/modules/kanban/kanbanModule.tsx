@@ -57,7 +57,7 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
               type: 'string',
               enum: ['task', 'note', 'checklist', 'milestone', 'subboard'],
               description:
-                'Card type (default task). A "subboard" card holds its own nested board, opened from the card.',
+                'Card type (default task). A "subboard" card holds its own nested board, opened from the card. After creating a subboard card, call open_board with subboard:<title> to add cards inside it.',
             },
             notes: { type: 'string' },
           },
@@ -187,6 +187,48 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore): Wor
           if (!name) return { ok: false, error: '`name` is required.' }
           const id = store.createProject({ name, description: a.description })
           return { ok: true, id, message: `Created board "${name}".` }
+        },
+      },
+      {
+        name: 'open_board',
+        description:
+          'Open (navigate to) a board so subsequent create_card/list_board/move_card act on it. ' +
+          'Open a root board by `name` or `projectId`. To work INSIDE a sub-board (a card of type ' +
+          'subboard), pass `subboard` = that card\'s title — you MUST open a sub-board before adding ' +
+          'cards to it.',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Root board name (case-insensitive).' },
+            projectId: { type: 'string' },
+            subboard: { type: 'string', description: 'Title of a sub-board card to open, so you can add cards INSIDE it (case-insensitive).' },
+          },
+        },
+        // Navigation only (no data read/write) → no permission gate.
+        handler: (a: { name?: string; projectId?: string; subboard?: string }) => {
+          if (a.subboard) {
+            const target = String(a.subboard).toLowerCase()
+            const matches = store.getState().cards.filter((c) => c.type === 'subboard' && c.title.toLowerCase() === target)
+            if (matches.length === 0) {
+              const names = store.getState().cards.filter((c) => c.type === 'subboard').map((c) => c.title)
+              return { ok: false, error: `No sub-board named "${a.subboard}". Sub-boards: ${names.join(', ') || '(none)'}.` }
+            }
+            if (matches.length > 1) {
+              return { ok: false, error: `Multiple sub-boards titled "${a.subboard}". Rename one to disambiguate.` }
+            }
+            const card = matches[0]
+            nav.openBoard({ projectId: card.projectId, parentCardId: card.id })
+            return { ok: true, board: card.title }
+          }
+          const projects = store.getState().projects
+          const project = a.projectId
+            ? projects.find((p) => p.id === a.projectId)
+            : projects.find((p) => p.name.toLowerCase() === String(a.name ?? '').toLowerCase())
+          if (!project) {
+            return { ok: false, error: `No board named "${a.name ?? a.projectId}". Boards: ${projects.map((p) => p.name).join(', ') || '(none)'}.` }
+          }
+          nav.openBoard({ projectId: project.id })
+          return { ok: true, board: project.name }
         },
       },
     ],

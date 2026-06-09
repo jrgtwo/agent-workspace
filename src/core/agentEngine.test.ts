@@ -111,6 +111,19 @@ describe('AgentEngine', () => {
   })
 })
 
+it('respects a custom maxIters (stops after the given number of tool-call rounds)', async () => {
+  let calls = 0
+  const client = { chat: async (_m: unknown, _t: unknown, _on: (s: string) => void) => {
+    calls++
+    return { content: '', toolCalls: [{ id: `c${calls}`, name: 'noop', arguments: '{}' }] }
+  } }
+  const registry = new Registry()
+  registry.register([{ name: 'noop', description: 'no-op', parameters: { type: 'object', properties: {} }, handler: () => ({ ok: true }) }])
+  const engine = new AgentEngine(client, registry, new PermissionBroker(() => 'p'), 'test', 2)
+  await engine.run('go')
+  expect(calls).toBe(2) // capped at 2 rounds, not the default 5
+})
+
 describe('AgentEngine stop', () => {
   it('aborts an in-flight run, clears busy, and resolves without throwing', async () => {
     const client = {

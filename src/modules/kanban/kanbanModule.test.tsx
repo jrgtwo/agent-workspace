@@ -105,6 +105,39 @@ describe('createKanbanModule', () => {
     expect(s.store.columnsForScope({ projectId: res.id })).toHaveLength(4)
   })
 
+  it('open_board opens a board by name and resolves the active scope', () => {
+    const pid = s.store.createProject({ name: 'Website Refresh' })
+    const res = s.tool('open_board').handler({ name: 'website refresh' }) as { ok: boolean }
+    expect(res.ok).toBe(true)
+    expect(s.nav.activeScope()?.projectId).toBe(pid)
+  })
+
+  it('open_board reports a friendly error for an unknown board', () => {
+    const res = s.tool('open_board').handler({ name: 'nope' }) as { ok: boolean; error: string }
+    expect(res.ok).toBe(false)
+    expect(res.error).toContain('No board')
+  })
+
+  it('open_board navigates into a sub-board by title so cards land inside it', () => {
+    const pid = s.store.createProject({ name: 'P' })
+    s.nav.openBoard({ projectId: pid })
+    const sub = s.tool('create_card').handler({ columnName: 'Backlog', title: 'Phase 1', type: 'subboard' }) as { id: string }
+    const opened = s.tool('open_board').handler({ subboard: 'phase 1' }) as { ok: boolean }
+    expect(opened.ok).toBe(true)
+    expect(s.nav.activeScope()).toMatchObject({ projectId: pid, parentCardId: sub.id })
+    s.tool('create_card').handler({ columnName: 'Backlog', title: 'Inner task' })
+    const inner = s.store.cardsForScope({ projectId: pid, parentCardId: sub.id })
+    expect(inner.map((c) => c.title)).toContain('Inner task')
+  })
+
+  it('open_board reports a friendly error for an unknown sub-board', () => {
+    const pid = s.store.createProject({ name: 'P' })
+    s.nav.openBoard({ projectId: pid })
+    const res = s.tool('open_board').handler({ subboard: 'nope' }) as { ok: boolean; error: string }
+    expect(res.ok).toBe(false)
+    expect(res.error.toLowerCase()).toContain('sub-board')
+  })
+
   it('move_card moves by title and reports ambiguity', () => {
     const pid = s.store.createProject({ name: 'P' })
     s.nav.openBoard({ projectId: pid })

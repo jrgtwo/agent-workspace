@@ -1,0 +1,9 @@
+.search-results { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: 8px 10px; gap: 8px; }
+.search-results__head { font-size: 11px; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; }
+.search-results__empty, .search-results__error { color: var(--text-muted); font-size: 0.85rem; }
+.search-results__error { color: var(--status-error, #c66); }
+.search-results__item { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.search-results__title { font-weight: 600; color: var(--accent); text-decoration: none; }
+.search-results__title:hover { text-decoration: underline; }
+.search-results__src { font-size: 0.72rem; color: var(--text-muted); margin: 2px 0; }
+.search-results__snippet { font-size: 0.85rem; }

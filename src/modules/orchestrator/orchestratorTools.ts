@@ -102,12 +102,12 @@ export function createOrchestratorTools(deps: OrchestratorToolDeps): ToolDef[] {
           const result = await sub.run(a.task)
           const created = proposals.getState().pending.filter((p) => !before.has(p.id))
           const changeIds = created.map((p) => p.id)
-          // Ground the report in what the subagent ACTUALLY proposed — small models sometimes claim
-          // success in prose without calling the tool, so never let an unverified "done" reach the user.
-          const outcome = created.length
-            ? `Proposed ${created.length} change${created.length === 1 ? '' : 's'} for the user to review and accept: ${created.map((c) => c.summary).join('; ')}.`
-            : 'The subagent proposed NO changes — nothing was created or modified. Do NOT tell the user the task is done; report that no change was made and, if known, why (the tool may not have been called or returned an error).'
-          const fullResult = `${result}\n\n[delegate outcome] ${outcome}`
+          let fullResult = result
+          if (created.length) {
+            fullResult = `${result}\n\n[delegate outcome] Proposed ${created.length} change${created.length === 1 ? '' : 's'} for the user to review and accept: ${created.map((c) => c.summary).join('; ')}.`
+          } else if (!feature.informational) {
+            fullResult = `${result}\n\n[delegate outcome] The subagent proposed NO changes — nothing was created or modified. Do NOT tell the user the task is done; report that no change was made and, if known, why (the tool may not have been called or returned an error).`
+          }
           if (stepId) plan.updateStep(stepId, { status: 'done', result: fullResult, changeIds })
           return { ok: true, result: fullResult, changesProposed: created.length }
         } catch (e) {

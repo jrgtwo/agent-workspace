@@ -16,6 +16,10 @@ import { createStyleGuideFeature } from '../features/styleguide'
 import { createSettingsFeature } from '../features/settings'
 import { createBoardFeature } from '../features/board'
 import { createOrchestratorFeature } from '../features/orchestrator'
+import { ResearchRegistry } from '../core/research/researchRegistry'
+import { SearxngProvider } from '../core/research/searxngProvider'
+import { SearchResultsStore } from '../modules/search/searchResultsStore'
+import { createSearchFeature } from '../features/search'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
 import { OrchestratorPlanStore } from '../modules/orchestrator/planStore'
 import { PreviewStore } from '../modules/orchestrator/previewStore'
@@ -76,6 +80,15 @@ const ORCHESTRATOR_PROMPT =
   'Just chat normally when no action is needed. When you learn a durable preference about the user, ' +
   'call remember.'
 
+const SEARCH_PROMPT =
+  'You are a web research assistant. Use web_search(query, count?) to look things up on the web — the ' +
+  'local model and the user\'s documents do not have live/current information. Every search leaves the ' +
+  'device, so the user is asked to APPROVE each query first; if they deny it, stop and say so. Default to ' +
+  '5 results; pass a higher count (up to 15) ONLY when the user explicitly wants more (e.g. a top-10 list). ' +
+  'After results come back, write a concise answer that CITES its sources (title + link). Do NOT invent ' +
+  'results — only use what web_search returned; if it returned nothing, say so. When you learn a durable ' +
+  'preference about the user, call the remember tool. Your tools are: web_search, remember — no others.'
+
 export interface AppServices {
   features: FeatureManifest[]
   layoutStores: Map<string, LayoutStore>
@@ -95,6 +108,8 @@ export interface AppServices {
   kanban: KanbanStore
   kanbanNav: KanbanNavStore
   preview: PreviewStore
+  searchResults: SearchResultsStore
+  research: ResearchRegistry
 }
 
 export interface CreateServicesOpts {
@@ -149,6 +164,13 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     return true
   })
 
+  // Web search: pluggable research providers; SearXNG adapter calls the local instance directly.
+  // (Default URL is a constant for now; a Settings server-config will make it editable later.)
+  const research = new ResearchRegistry()
+  research.register(new SearxngProvider('http://localhost:8888'))
+  const searchProvider = research.get('searxng')!
+  const searchResults = new SearchResultsStore()
+
   // Inject live state into each feature agent's system prompt every run, so it knows the active
   // document / open board (and which sub-boards exist) instead of guessing.
   notesEngine.setContextProvider(() => describeNotesContext(library, docStore))
@@ -174,6 +196,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const settings = createSettingsFeature({ theme, memory, clearAll })
   const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent, proposals, applier })
 
+  const searchToolRegistry = new Registry()
+  const searchEngine = new AgentEngine(client, searchToolRegistry, broker, 'search-chat')
+  const search = createSearchFeature({ engine: searchEngine, broker, accent: agentAccent, provider: searchProvider, results: searchResults })
+
   // Register each feature's tools into ITS OWN registry, plus the global `remember` tool into both
   // (memory is workspace-wide; Settings has no agent so we register `remember` explicitly).
   const memoryModule = createMemoryViewerModule(memory)
@@ -181,6 +207,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   for (const mod of board.modules) boardRegistry.register(mod.tools)
   notesRegistry.register(memoryModule.tools)
   boardRegistry.register(memoryModule.tools)
+  for (const mod of search.modules) searchToolRegistry.register(mod.tools)
+  searchToolRegistry.register(memoryModule.tools)
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
@@ -189,6 +217,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const featureAgents: FeatureAgentRegistry = new Map([
     ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry, contextProvider: () => describeNotesContext(library, docStore) }],
     ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, contextProvider: () => describeKanbanContext(kanban, kanbanNav) }],
+    ['search', { id: 'search', title: 'Search', description: 'Search the WEB for up-to-date information (news, travel ideas, current facts) the local model and documents lack. Returns cited results; the user approves each query before it is sent.', registry: searchToolRegistry, informational: true }],
   ])
 
   const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), uid)
@@ -252,13 +281,20 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     getKey: () => kanbanNav.activeScope()?.projectId ?? '__projects__',
     source: kanbanNav,
   })
+  await createFeatureChatController({
+    engine: searchEngine,
+    scope: storage.scope('search-chat'),
+    systemPrompt: SEARCH_PROMPT,
+    getKey: () => 'search',
+    source: { subscribe: () => () => {} },
+  })
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings, board, orchestrator]) {
+  for (const feature of [notes, styleguide, settings, board, search, orchestrator]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, orchestrator], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview }
+  return { features: [notes, styleguide, settings, board, search, orchestrator], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research }
 }

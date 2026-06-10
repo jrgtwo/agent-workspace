@@ -165,6 +165,23 @@ describe('orchestrator tools', () => {
     expect(res.result).toContain('I created the board.') // the subagent's prose is preserved, but flagged
   })
 
+  it('delegate does NOT add the "no changes" warning for an informational feature (e.g. search)', async () => {
+    const plan = makePlan(); await plan.init('A')
+    const proposals = new ProposalStore(() => 'c')
+    const preview = new PreviewStore()
+    const registry = new Registry()
+    registry.register([{ name: 'web_search', description: 'w', parameters: { type: 'object', properties: {} }, handler: () => ({ ok: true }) }])
+    const featureAgents: FeatureAgentRegistry = new Map([['search', { id: 'search', title: 'Search', description: 'd', registry, informational: true }]])
+    const client = scriptedClient([
+      { content: '', toolCalls: [{ id: 'c1', name: 'web_search', arguments: '{}' }] },
+      { content: 'Here are the top 5 things to do in Lisbon.', toolCalls: [] },
+    ])
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals, preview })
+    const res = await tools.find((t) => t.name === 'delegate')!.handler({ targetFeature: 'search', task: 'top 5 things to do in lisbon' }) as { result: string }
+    expect(res.result).not.toMatch(/NO changes/i)
+    expect(res.result).toContain('top 5 things to do in Lisbon')
+  })
+
   it('delegate reports the concrete changes the subagent actually proposed', async () => {
     const plan = makePlan(); await plan.init('A')
     let pn = 0

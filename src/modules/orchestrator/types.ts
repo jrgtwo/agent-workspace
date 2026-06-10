@@ -26,4 +26,7 @@ export interface FeatureAgent {
   registry: Registry
   /** Optional live-state snapshot, injected into the delegated subagent's system prompt each run. */
   contextProvider?: () => string
+  /** True for read-only/answer features (e.g. search) that legitimately produce no proposals;
+   *  delegate then treats the subagent's summary as the deliverable instead of warning "no changes". */
+  informational?: boolean
 }

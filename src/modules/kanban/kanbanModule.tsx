@@ -1,5 +1,5 @@
 import type { WorkspaceModule } from '../../core/types'
-import type { CardType } from './types'
+import type { CardType, KanbanProposalPayload } from './types'
 import type { KanbanStore } from './kanbanStore'
 import type { KanbanNavStore } from './kanbanNavStore'
 import type { ProposalStore } from '../../core/proposalStore'
@@ -74,12 +74,23 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore, prop
           if (!col) {
             return { ok: false, error: `No column named "${a.columnName}". Columns: ${cols.map((c) => c.name).join(', ')}.` }
           }
+          const title = a.title.trim()
+          // Loop guard: don't re-propose a card that's ALREADY pending for this column (the model can't
+          // see its own pending proposals in the board snapshot, so it tends to re-add them). Committed
+          // cards are NOT checked, so legitimately repeated titles (two "task" cards, etc.) still work.
+          const alreadyPending = proposals.forModule('kanban-board').some((c) => {
+            const p = c.payload as KanbanProposalPayload
+            return p.kind === 'create-card' && p.columnId === col.id && p.input.title.trim().toLowerCase() === title.toLowerCase()
+          })
+          if (alreadyPending) {
+            return { ok: true, alreadyPending: true, message: `A card titled "${title}" is already pending for ${col.name} — not duplicating it.` }
+          }
           proposals.propose({
             moduleId: 'kanban-board',
-            summary: `Add card "${a.title.trim()}" to ${col.name}`,
-            payload: { kind: 'create-card', scope, columnId: col.id, input: { title: a.title.trim(), notes: a.notes, type: a.type } },
+            summary: `Add card "${title}" to ${col.name}`,
+            payload: { kind: 'create-card', scope, columnId: col.id, input: { title, notes: a.notes, type: a.type } },
           })
-          return { proposed: true, message: `Proposed "${a.title.trim()}" → ${col.name}; awaiting your review.` }
+          return { proposed: true, message: `Proposed "${title}" → ${col.name}; awaiting your review.` }
         },
       },
       {

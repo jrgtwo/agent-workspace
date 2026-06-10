@@ -162,6 +162,24 @@ describe('AgentEngine steering', () => {
     expect(engine.getState().busy).toBe(false)
   })
 
+  it('stops when the model spams the SAME tool with varying args, before dispatching them all', async () => {
+    let dispatched = 0
+    const client = {
+      chat: async () => ({
+        content: '',
+        toolCalls: Array.from({ length: 25 }, (_, i) => ({ id: `c${i}`, name: 'create_card', arguments: JSON.stringify({ title: `Card ${i}` }) })),
+      }),
+    }
+    const registry = new Registry()
+    registry.register([{ name: 'create_card', description: 'add', parameters: { type: 'object', properties: {} }, handler: () => { dispatched++; return { ok: true } } }])
+    const engine = new AgentEngine(client as never, registry, new PermissionBroker(() => 'p'), 'test', 5)
+
+    const answer = await engine.run('add 25 cards')
+
+    expect(answer).toMatch(/stopped/i)
+    expect(dispatched).toBe(20) // tripped the per-tool cap (20) on the 21st call, before dispatching all 25
+  })
+
   it('promptSize reports the size of the messages + tools it would send', () => {
     const registry = new Registry()
     registry.register([{ name: 't', description: 'd', parameters: { type: 'object', properties: {} }, handler: () => null }])

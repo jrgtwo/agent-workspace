@@ -1,12 +1,16 @@
 import type { KanbanStore } from './kanbanStore'
 import type { KanbanNavStore } from './kanbanNavStore'
+import type { ProposalStore } from '../../core/proposalStore'
+import type { KanbanProposalPayload } from './types'
 
 /**
  * A one-shot, plain-text snapshot of the kanban board the agent is looking at, injected into the
  * system prompt each run so the model knows what's open (and which sub-boards exist) instead of
- * guessing. Read-only; cheap; recomputed per run.
+ * guessing. Includes cards the agent has ALREADY PROPOSED (pending the user's approval) — these are
+ * NOT in the committed board, so without this the model can't see its own work and re-adds duplicates.
+ * Read-only; cheap; recomputed per run.
  */
-export function describeKanbanContext(store: KanbanStore, nav: KanbanNavStore): string {
+export function describeKanbanContext(store: KanbanStore, nav: KanbanNavStore, proposals: ProposalStore): string {
   const scope = nav.activeScope()
   const { projects } = store.getState()
 
@@ -37,6 +41,18 @@ export function describeKanbanContext(store: KanbanStore, nav: KanbanNavStore): 
     lines.push(
       `Sub-boards on this board: ${subboards.map((t) => `"${t}"`).join(', ')}. ` +
         'To add cards INSIDE one, call open_board with subboard:"<title>" first.',
+    )
+  }
+  const colIds = new Set(columns.map((c) => c.id))
+  const pendingCards = proposals
+    .forModule('kanban-board')
+    .map((c) => c.payload as KanbanProposalPayload)
+    .filter((p) => p.kind === 'create-card' && colIds.has(p.columnId))
+    .map((p) => (p as Extract<KanbanProposalPayload, { kind: 'create-card' }>).input.title)
+  if (pendingCards.length) {
+    lines.push(
+      `Already PROPOSED on this board (awaiting the user's approval — do NOT propose these again): ` +
+        `${pendingCards.map((t) => `"${t}"`).join(', ')}.`,
     )
   }
   return lines.join('\n')

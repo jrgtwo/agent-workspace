@@ -18,6 +18,28 @@ function build() {
 }
 
 describe('kanban tools propose instead of mutating', () => {
+  it('create_card does NOT re-propose a card already pending for the column, but allows distinct titles', () => {
+    const { store, nav, proposals, tool } = build()
+    const pid = store.createProject({ name: 'P' })
+    nav.openBoard({ projectId: pid })
+    const col = store.columnsForScope({ projectId: pid })[0]
+
+    tool('create_card').handler({ columnName: col.name, title: 'Waimea Canyon' })
+    const dupe = tool('create_card').handler({ columnName: col.name, title: 'waimea canyon' }) as { alreadyPending?: boolean }
+    expect(dupe.alreadyPending).toBe(true)
+    expect(proposals.forModule('kanban-board')).toHaveLength(1) // not duplicated (case-insensitive match)
+
+    // A different title is still proposed (distinct cards are fine).
+    tool('create_card').handler({ columnName: col.name, title: 'Hanalei Bay' })
+    expect(proposals.forModule('kanban-board')).toHaveLength(2)
+
+    // Once the pending one is resolved, the same title may be proposed again (committed dupes are allowed).
+    const waimea = proposals.forModule('kanban-board').find((c) => (c.payload as KanbanProposalPayload as { input: { title: string } }).input.title === 'Waimea Canyon')!
+    proposals.remove(waimea.id)
+    tool('create_card').handler({ columnName: col.name, title: 'Waimea Canyon' })
+    expect(proposals.forModule('kanban-board')).toHaveLength(2)
+  })
+
   it('create_card enqueues a kanban-board proposal and does not add the card until accepted', () => {
     const { store, nav, proposals, tool } = build()
     const pid = store.createProject({ name: 'P' })

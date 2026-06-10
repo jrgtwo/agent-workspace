@@ -58,7 +58,10 @@ export interface KanbanState {
 
 import type { CreateCardInput } from './kanbanStore'
 
-/** A pending kanban write, applied on Accept. */
+/** A resolved card to be created (column already looked up). */
+export interface CreateCardEntry { scope: Scope; columnId: string; input: CreateCardInput }
+
+/** A pending kanban write, applied on Accept. Card creation is a BATCH (1+ cards) → one approval. */
 export type KanbanProposalPayload =
-  | { kind: 'create-card'; scope: Scope; columnId: string; input: CreateCardInput }
+  | { kind: 'create-cards'; cards: CreateCardEntry[] }
   | { kind: 'move-card'; cardId: string; toColumnId: string; toIndex: number }

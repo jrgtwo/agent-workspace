@@ -289,10 +289,12 @@ export class KanbanStore extends Emitter<KanbanState> {
 
   /** Apply a pending kanban proposal. Returns whether it applied. */
   applyProposal(payload: KanbanProposalPayload): boolean {
-    if (payload.kind === 'create-card') {
-      const id = this.createCard(payload.scope, payload.columnId, payload.input)
-      if (payload.input.type === 'subboard') {
-        this.ensureBoardColumns({ projectId: payload.scope.projectId, parentCardId: id })
+    if (payload.kind === 'create-cards') {
+      for (const c of payload.cards) {
+        const id = this.createCard(c.scope, c.columnId, c.input)
+        if (c.input.type === 'subboard') {
+          this.ensureBoardColumns({ projectId: c.scope.projectId, parentCardId: id })
+        }
       }
       return true
     }

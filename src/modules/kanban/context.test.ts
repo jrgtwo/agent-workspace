@@ -62,7 +62,7 @@ describe('describeKanbanContext', () => {
     proposals.propose({
       moduleId: 'kanban-board',
       summary: 's',
-      payload: { kind: 'create-card', scope: { projectId: pid }, columnId: backlog.id, input: { title: 'Walk' } },
+      payload: { kind: 'create-cards', cards: [{ scope: { projectId: pid }, columnId: backlog.id, input: { title: 'Walk' } }] },
     })
 
     const ctx = describeKanbanContext(store, nav, proposals)

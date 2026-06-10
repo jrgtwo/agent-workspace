@@ -34,14 +34,14 @@ describe('createKanbanModule', () => {
     expect(s.tool('list_board').permission?.resource).toBe('kanban-board')
     expect(s.tool('list_board').permission?.locality).toBe('LOCAL')
     // write tools now propose; no permission gate
-    expect(s.tool('create_card').permission).toBeUndefined()
+    expect(s.tool('create_cards').permission).toBeUndefined()
     expect(s.tool('move_card').permission).toBeUndefined()
     expect(s.tool('create_board').permission).toBeUndefined()
   })
 
   it('tools no-op with a friendly message when no board is open', () => {
     expect(s.tool('list_board').handler({})).toMatchObject({ ok: false })
-    expect(s.tool('create_card').handler({ columnName: 'Backlog', title: 'x' })).toMatchObject({
+    expect(s.tool('create_cards').handler({ cards: [{ columnName: 'Backlog', title: 'x' }] })).toMatchObject({
       ok: false,
     })
     expect(s.tool('move_card').handler({ toColumnName: 'Done' })).toMatchObject({ ok: false })
@@ -66,11 +66,11 @@ describe('createKanbanModule', () => {
     })
   })
 
-  it('create_card resolves the column by name (case-insensitive), proposes, and rejects unknown columns', () => {
+  it('create_cards resolves the column by name (case-insensitive), proposes, and skips unknown columns', () => {
     const pid = s.store.createProject({ name: 'P' })
     s.nav.openBoard({ projectId: pid })
 
-    const res = s.tool('create_card').handler({ columnName: 'in progress', title: 'Task A' }) as {
+    const res = s.tool('create_cards').handler({ cards: [{ columnName: 'in progress', title: 'Task A' }] }) as {
       proposed: boolean
     }
     expect(res.proposed).toBe(true)
@@ -78,22 +78,23 @@ describe('createKanbanModule', () => {
     const ip = s.store.columnsForScope({ projectId: pid }).find((c) => c.name === 'In Progress')!
     expect(s.store.cardsInColumn(ip.id)).toHaveLength(0)
 
-    const bad = s.tool('create_card').handler({ columnName: 'Nope', title: 'x' }) as {
+    // unknown column is now SKIPPED (not a hard error); proposed:false with skipped entries
+    const bad = s.tool('create_cards').handler({ cards: [{ columnName: 'Nope', title: 'x' }] }) as {
       ok: boolean
-      error: string
+      proposed: boolean
+      skipped: string[]
     }
-    expect(bad.ok).toBe(false)
-    expect(bad.error).toContain('Backlog')
+    expect(bad.ok).toBe(true)
+    expect(bad.proposed).toBe(false)
+    expect(bad.skipped.length).toBeGreaterThan(0)
   })
 
-  it('create_card proposes a sub-board card (store unchanged until accepted)', () => {
+  it('create_cards proposes a sub-board card (store unchanged until accepted)', () => {
     const pid = s.store.createProject({ name: 'P' })
     s.nav.openBoard({ projectId: pid })
 
-    const res = s.tool('create_card').handler({
-      columnName: 'Backlog',
-      title: 'Epic',
-      type: 'subboard',
+    const res = s.tool('create_cards').handler({
+      cards: [{ columnName: 'Backlog', title: 'Epic', type: 'subboard' }],
     }) as { proposed: boolean }
     expect(res.proposed).toBe(true)
     // store is unchanged — card not created until proposal is accepted
@@ -134,7 +135,7 @@ describe('createKanbanModule', () => {
     expect(opened.ok).toBe(true)
     expect(s.nav.activeScope()).toMatchObject({ projectId: pid, parentCardId: subId })
     // Proposing a card inside the sub-board enqueues a proposal for the active scope
-    const innerRes = s.tool('create_card').handler({ columnName: 'Backlog', title: 'Inner task' }) as { proposed: boolean }
+    const innerRes = s.tool('create_cards').handler({ cards: [{ columnName: 'Backlog', title: 'Inner task' }] }) as { proposed: boolean }
     expect(innerRes.proposed).toBe(true)
     expect(s.proposals.forModule('kanban-board')).toHaveLength(1)
   })

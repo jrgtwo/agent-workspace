@@ -18,53 +18,71 @@ function build() {
 }
 
 describe('kanban tools propose instead of mutating', () => {
-  it('create_card does NOT re-propose a card already pending for the column, but allows distinct titles', () => {
+  it('create_cards does NOT re-propose a card already pending for the column, but allows distinct titles', () => {
     const { store, nav, proposals, tool } = build()
     const pid = store.createProject({ name: 'P' })
     nav.openBoard({ projectId: pid })
     const col = store.columnsForScope({ projectId: pid })[0]
 
-    tool('create_card').handler({ columnName: col.name, title: 'Waimea Canyon' })
-    const dupe = tool('create_card').handler({ columnName: col.name, title: 'waimea canyon' }) as { alreadyPending?: boolean }
-    expect(dupe.alreadyPending).toBe(true)
+    // First call proposes successfully.
+    tool('create_cards').handler({ cards: [{ columnName: col.name, title: 'Waimea Canyon' }] })
+    // Second call with same title (case-insensitive) is skipped → proposed:false, skipped non-empty.
+    const dupe = tool('create_cards').handler({ cards: [{ columnName: col.name, title: 'waimea canyon' }] }) as { proposed: boolean; skipped: string[] }
+    expect(dupe.proposed).toBe(false)
+    expect(dupe.skipped.length).toBeGreaterThan(0)
     expect(proposals.forModule('kanban-board')).toHaveLength(1) // not duplicated (case-insensitive match)
 
     // A different title is still proposed (distinct cards are fine).
-    tool('create_card').handler({ columnName: col.name, title: 'Hanalei Bay' })
+    tool('create_cards').handler({ cards: [{ columnName: col.name, title: 'Hanalei Bay' }] })
     expect(proposals.forModule('kanban-board')).toHaveLength(2)
 
     // Once the pending one is resolved, the same title may be proposed again (committed dupes are allowed).
-    const waimea = proposals.forModule('kanban-board').find((c) => (c.payload as KanbanProposalPayload as { input: { title: string } }).input.title === 'Waimea Canyon')!
+    const waimea = proposals.forModule('kanban-board').find((c) => {
+      const p = c.payload as KanbanProposalPayload
+      return p.kind === 'create-cards' && p.cards.some((e) => e.input.title === 'Waimea Canyon')
+    })!
     proposals.remove(waimea.id)
-    tool('create_card').handler({ columnName: col.name, title: 'Waimea Canyon' })
+    tool('create_cards').handler({ cards: [{ columnName: col.name, title: 'Waimea Canyon' }] })
     expect(proposals.forModule('kanban-board')).toHaveLength(2)
+
+    // Within-batch dedupe: a single call with two identical titles only creates ONE card in the proposal.
+    const { store: s2, nav: n2, proposals: p2, tool: t2 } = build()
+    const pid2 = s2.createProject({ name: 'Q' })
+    n2.openBoard({ projectId: pid2 })
+    const col2 = s2.columnsForScope({ projectId: pid2 })[0]
+    t2('create_cards').handler({ cards: [{ columnName: col2.name, title: 'Dup' }, { columnName: col2.name, title: 'dup' }] })
+    const batch = p2.forModule('kanban-board')
+    expect(batch).toHaveLength(1)
+    const batchPayload = batch[0].payload as KanbanProposalPayload & { kind: 'create-cards' }
+    expect(batchPayload.cards).toHaveLength(1)
   })
 
-  it('create_card enqueues a kanban-board proposal and does not add the card until accepted', () => {
+  it('create_cards enqueues a kanban-board proposal and does not add the card until accepted', () => {
     const { store, nav, proposals, tool } = build()
     const pid = store.createProject({ name: 'P' })
     nav.openBoard({ projectId: pid })
     const col = store.columnsForScope({ projectId: pid })[0]
-    const res = tool('create_card').handler({ columnName: col.name, title: 'Draft' })
+    const res = tool('create_cards').handler({ cards: [{ columnName: col.name, title: 'Draft' }] })
     expect(res).toMatchObject({ proposed: true })
     expect(store.cardsInColumn(col.id)).toHaveLength(0)
     const pending = proposals.forModule('kanban-board')
     expect(pending).toHaveLength(1)
-    expect((pending[0].payload as KanbanProposalPayload).kind).toBe('create-card')
+    expect((pending[0].payload as KanbanProposalPayload).kind).toBe('create-cards')
   })
 
-  it('create_card has no permission gate', () => {
+  it('create_cards has no permission gate', () => {
     const { tool } = build()
-    expect(tool('create_card').permission).toBeUndefined()
+    expect(tool('create_cards').permission).toBeUndefined()
   })
 
-  it('create_card still validates the column name before proposing', () => {
+  it('create_cards skips a card with an unknown column (does not hard-error)', () => {
     const { store, nav, tool } = build()
     const pid = store.createProject({ name: 'P' })
     nav.openBoard({ projectId: pid })
-    const res = tool('create_card').handler({ columnName: 'Nope', title: 'X' }) as { ok?: boolean; error?: string }
-    expect(res.ok).toBe(false)
-    expect(res.error).toContain('No column')
+    const res = tool('create_cards').handler({ cards: [{ columnName: 'Nope', title: 'X' }] }) as { ok?: boolean; proposed?: boolean; skipped?: string[] }
+    expect(res.ok).toBe(true)
+    expect(res.proposed).toBe(false)
+    expect(res.skipped!.length).toBeGreaterThan(0)
   })
 
   it('create_board enqueues a kanban-project proposal', () => {
@@ -86,14 +104,14 @@ describe('kanban tools propose instead of mutating', () => {
     expect(payload.kind).toBe('move-card')
   })
 
-  it('create_card rejects a blank title before proposing', () => {
+  it('create_cards skips a blank title (does not propose)', () => {
     const { store, nav, proposals, tool } = build()
     const pid = store.createProject({ name: 'P' })
     nav.openBoard({ projectId: pid })
     const col = store.columnsForScope({ projectId: pid })[0]
-    const res = tool('create_card').handler({ columnName: col.name, title: '   ' }) as { ok?: boolean; error?: string }
-    expect(res.ok).toBe(false)
-    expect(res.error).toContain('title')
+    const res = tool('create_cards').handler({ cards: [{ columnName: col.name, title: '   ' }] }) as { ok?: boolean; proposed?: boolean; skipped?: string[] }
+    // blank titles are skipped → all cards skipped → proposed:false
+    expect(res.proposed).toBe(false)
     expect(proposals.forModule('kanban-board')).toHaveLength(0)
   })
 

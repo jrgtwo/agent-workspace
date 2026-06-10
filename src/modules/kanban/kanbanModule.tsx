@@ -1,5 +1,5 @@
 import type { WorkspaceModule } from '../../core/types'
-import type { CardType, KanbanProposalPayload } from './types'
+import type { CardType, CreateCardEntry, KanbanProposalPayload } from './types'
 import type { KanbanStore } from './kanbanStore'
 import type { KanbanNavStore } from './kanbanNavStore'
 import type { ProposalStore } from '../../core/proposalStore'
@@ -46,51 +46,90 @@ export function createKanbanModule(store: KanbanStore, nav: KanbanNavStore, prop
         },
       },
       {
-        name: 'create_card',
+        name: 'create_cards',
         description:
-          'Propose adding a card to a named column on the currently-open board (shown as a pending ' +
-          'change awaiting your review). Use list_board first to see the column names.',
+          'Propose adding one or MORE cards to the currently-open board in a SINGLE call (shown as one ' +
+          'pending change awaiting the user\'s review, applied together). Gather ALL the cards you want ' +
+          'and call this ONCE — do not call it repeatedly. Each card names its own column. Use list_board ' +
+          'first to see the column names.',
         parameters: {
           type: 'object',
           properties: {
-            columnName: { type: 'string', description: 'Target column name (case-insensitive).' },
-            title: { type: 'string' },
-            type: {
-              type: 'string',
-              enum: ['task', 'note', 'checklist', 'milestone', 'subboard'],
-              description:
-                'Card type (default task). A "subboard" card holds its own nested board, opened from the card. After creating a subboard card, call open_board with subboard:<title> to add cards inside it.',
+            cards: {
+              type: 'array',
+              description: 'The cards to add — pass the full list in one call.',
+              items: {
+                type: 'object',
+                properties: {
+                  columnName: { type: 'string', description: 'Target column name (case-insensitive).' },
+                  title: { type: 'string' },
+                  type: {
+                    type: 'string',
+                    enum: ['task', 'note', 'checklist', 'milestone', 'subboard'],
+                    description: 'Card type (default task). A "subboard" card holds its own nested board.',
+                  },
+                  notes: { type: 'string' },
+                },
+                required: ['columnName', 'title'],
+              },
             },
-            notes: { type: 'string' },
           },
-          required: ['columnName', 'title'],
+          required: ['cards'],
         },
-        handler: (a: { columnName: string; title: string; type?: CardType; notes?: string }) => {
+        handler: (a: { cards?: Array<{ columnName: string; title: string; type?: CardType; notes?: string }> }) => {
           const scope = nav.activeScope()
           if (!scope) return NO_BOARD
-          if (!a.title?.trim()) return { ok: false, error: '`title` is required.' }
+          const list = Array.isArray(a?.cards) ? a.cards : []
+          if (!list.length) return { ok: false, error: '`cards` must be a non-empty array.' }
           const cols = store.columnsForScope(scope)
-          const col = cols.find((c) => c.name.toLowerCase() === String(a.columnName ?? '').toLowerCase())
-          if (!col) {
-            return { ok: false, error: `No column named "${a.columnName}". Columns: ${cols.map((c) => c.name).join(', ')}.` }
-          }
-          const title = a.title.trim()
-          // Loop guard: don't re-propose a card that's ALREADY pending for this column (the model can't
-          // see its own pending proposals in the board snapshot, so it tends to re-add them). Committed
-          // cards are NOT checked, so legitimately repeated titles (two "task" cards, etc.) still work.
-          const alreadyPending = proposals.forModule('kanban-board').some((c) => {
+
+          // Titles already PENDING per column (loop guard — pending-only, so committed/legit duplicate
+          // titles are fine; the model just can't see its own pending proposals in the board snapshot).
+          const pendingByCol = new Map<string, Set<string>>()
+          for (const c of proposals.forModule('kanban-board')) {
             const p = c.payload as KanbanProposalPayload
-            return p.kind === 'create-card' && p.columnId === col.id && p.input.title.trim().toLowerCase() === title.toLowerCase()
-          })
-          if (alreadyPending) {
-            return { ok: true, alreadyPending: true, message: `A card titled "${title}" is already pending for ${col.name} — not duplicating it.` }
+            if (p.kind !== 'create-cards') continue
+            for (const card of p.cards) {
+              const set = pendingByCol.get(card.columnId) ?? new Set<string>()
+              set.add(card.input.title.trim().toLowerCase())
+              pendingByCol.set(card.columnId, set)
+            }
           }
+
+          const resolved: CreateCardEntry[] = []
+          const seenInBatch = new Map<string, Set<string>>()
+          const skipped: string[] = []
+          for (const card of list) {
+            const title = String(card?.title ?? '').trim()
+            if (!title) { skipped.push('(blank title)'); continue }
+            const col = cols.find((c) => c.name.toLowerCase() === String(card?.columnName ?? '').toLowerCase())
+            if (!col) { skipped.push(`"${title}" (no column "${card?.columnName}")`); continue }
+            const key = title.toLowerCase()
+            const inBatch = seenInBatch.get(col.id) ?? new Set<string>()
+            if (inBatch.has(key) || pendingByCol.get(col.id)?.has(key)) {
+              skipped.push(`"${title}" (already ${inBatch.has(key) ? 'in this batch' : 'pending'})`)
+              continue
+            }
+            inBatch.add(key); seenInBatch.set(col.id, inBatch)
+            resolved.push({ scope, columnId: col.id, input: { title, notes: card.notes, type: card.type } })
+          }
+
+          if (!resolved.length) {
+            return { ok: true, proposed: false, skipped, message: `No cards to add — all ${list.length} were duplicates or had an unknown column.` }
+          }
+          const board = store.getProject(scope.projectId)?.name ?? 'board'
+          const titles = resolved.map((r) => r.input.title)
           proposals.propose({
             moduleId: 'kanban-board',
-            summary: `Add card "${title}" to ${col.name}`,
-            payload: { kind: 'create-card', scope, columnId: col.id, input: { title, notes: a.notes, type: a.type } },
+            summary: `Add ${resolved.length} card${resolved.length === 1 ? '' : 's'} to ${board}: ${titles.join(', ')}`,
+            payload: { kind: 'create-cards', cards: resolved },
           })
-          return { proposed: true, message: `Proposed "${title}" → ${col.name}; awaiting your review.` }
+          return {
+            proposed: true,
+            count: resolved.length,
+            ...(skipped.length ? { skipped } : {}),
+            message: `Proposed ${resolved.length} card${resolved.length === 1 ? '' : 's'}; awaiting your review.${skipped.length ? ` Skipped ${skipped.length}.` : ''}`,
+          }
         },
       },
       {

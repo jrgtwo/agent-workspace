@@ -17,7 +17,7 @@ function scripted(): { chat: (m: unknown, t: unknown, on: (s: string) => void) =
     { content: '', toolCalls: [{ id: 'o2', name: 'delegate', arguments: JSON.stringify({ targetFeature: 'kanban', task: 'Create a board "Launch", open it, add a card "Ship it" to Backlog' }) }] },
     { content: '', toolCalls: [{ id: 's1', name: 'create_board', arguments: JSON.stringify({ name: 'Launch' }) }] },
     { content: '', toolCalls: [{ id: 's2', name: 'open_board', arguments: JSON.stringify({ name: 'Launch' }) }] },
-    { content: '', toolCalls: [{ id: 's3', name: 'create_card', arguments: JSON.stringify({ columnName: 'Backlog', title: 'Ship it' }) }] },
+    { content: '', toolCalls: [{ id: 's3', name: 'create_cards', arguments: JSON.stringify({ cards: [{ columnName: 'Backlog', title: 'Ship it' }] }) }] },
     { content: 'Created the Launch board with a Ship it card.', toolCalls: [] },
     { content: 'Done — your Launch board is ready.', toolCalls: [] },
   ]
@@ -30,7 +30,7 @@ describe('orchestrator end-to-end (scripted)', () => {
     const backend = new MemoryBackend()
     const services = await createServices({ client: scripted(), backend })
 
-    // Auto-accept any proposals the subagent enqueues (create_board/create_card now propose).
+    // Auto-accept any proposals the subagent enqueues (create_board/create_cards now propose).
     services.proposals.subscribe(() => {
       for (const p of services.proposals.getState().pending) services.applier.accept(p)
     })

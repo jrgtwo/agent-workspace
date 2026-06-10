@@ -46,9 +46,12 @@ export function describeKanbanContext(store: KanbanStore, nav: KanbanNavStore, p
   const colIds = new Set(columns.map((c) => c.id))
   const pendingCards = proposals
     .forModule('kanban-board')
-    .map((c) => c.payload as KanbanProposalPayload)
-    .filter((p) => p.kind === 'create-card' && colIds.has(p.columnId))
-    .map((p) => (p as Extract<KanbanProposalPayload, { kind: 'create-card' }>).input.title)
+    .flatMap((c) => {
+      const p = c.payload as KanbanProposalPayload
+      return p.kind === 'create-cards' ? p.cards : []
+    })
+    .filter((card) => colIds.has(card.columnId))
+    .map((card) => card.input.title)
   if (pendingCards.length) {
     lines.push(
       `Already PROPOSED on this board (awaiting the user's approval — do NOT propose these again): ` +

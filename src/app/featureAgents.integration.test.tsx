@@ -15,11 +15,11 @@ describe('per-feature agents', () => {
     expect(notesTools).toContain('read_document')
     expect(notesTools).toContain('propose_edit')
     expect(notesTools).toContain('create_document')
-    expect(notesTools).not.toContain('create_card')
+    expect(notesTools).not.toContain('create_cards')
     expect(notesTools).not.toContain('create_board')
 
     expect(boardTools).toContain('list_board')
-    expect(boardTools).toContain('create_card')
+    expect(boardTools).toContain('create_cards')
     expect(boardTools).toContain('create_board')
     expect(boardTools).not.toContain('read_document')
     expect(boardTools).not.toContain('propose_edit')

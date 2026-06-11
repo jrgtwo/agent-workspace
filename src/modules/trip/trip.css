@@ -1,5 +1,17 @@
 /* trip — day-strip itinerary panel */
 
+.trip-itinerary { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; }
+.trip-header { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2);
+  border-bottom: 1px solid var(--border); background: var(--surface); flex: 0 0 auto; }
+.trip-header__name { background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-control); color: var(--text); padding: 4px 8px; font-weight: 600; min-width: 8em; }
+.trip-header select { background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius-control); padding: 4px; }
+.trip-header__new, .trip-header__del { background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-control); cursor: pointer; padding: 4px 8px; color: var(--text); }
+.trip-header__new { color: var(--accent); }
+.trip-itinerary .day-strip { flex: 1 1 auto; }
+
 .day-strip {
   display: flex;
   gap: var(--space-3);
@@ -88,3 +100,13 @@
   border-color: var(--accent);
   outline: none;
 }
+
+.trip-map { height: 100%; width: 100%; position: relative; background: var(--surface); }
+.trip-map__leaflet { position: absolute; inset: 0; }
+.trip-map__cta { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: var(--space-3); }
+.trip-map__cta button { background: var(--accent); color: #000;
+  border: 0; border-radius: var(--radius-control); padding: 6px 14px; cursor: pointer; }
+.trip-map__toggle { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 500;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-control);
+  color: var(--text-muted); padding: 3px 8px; cursor: pointer; }

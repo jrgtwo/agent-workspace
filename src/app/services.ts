@@ -18,6 +18,8 @@ import { createBoardFeature } from '../features/board'
 import { createOrchestratorFeature } from '../features/orchestrator'
 import { ResearchRegistry } from '../core/research/researchRegistry'
 import { SearxngProvider } from '../core/research/searxngProvider'
+import { GeoRegistry } from '../core/geo/geoRegistry'
+import { OsmGeoProvider } from '../core/geo/osmGeoProvider'
 import { SearchResultsStore } from '../modules/search/searchResultsStore'
 import { createSearchFeature } from '../features/search'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
@@ -29,6 +31,8 @@ import { KanbanStore } from '../modules/kanban/kanbanStore'
 import { KanbanNavStore } from '../modules/kanban/kanbanNavStore'
 import { TripStore } from '../modules/trip/tripStore'
 import { createTripFeature } from '../features/trip'
+import { createTripTools } from '../modules/trip/tripTools'
+import { describeTripContext } from '../modules/trip/context'
 import { describeKanbanContext } from '../modules/kanban/context'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { describeNotesContext } from '../modules/docEditor/context'
@@ -85,9 +89,19 @@ const ORCHESTRATOR_PROMPT =
   'call remember.'
 
 const TRIP_PROMPT =
-  'You are a local, privacy-first travel-planning assistant embedded in a trip planner. ' +
-  'You help the user build a day-by-day itinerary of places. When you learn a durable preference ' +
-  'about the user, call the remember tool.'
+  'You are a local, privacy-first travel-planning assistant embedded in a map-based trip planner. ' +
+  'You help the user research and BUILD day-by-day itineraries. Your tools are: web_search, ' +
+  'search_places, create_itinerary, propose_stops, remember — you have no others. ' +
+  'To build a new itinerary from a request (e.g. "a 3-day Maui itinerary of the top sights"): first use ' +
+  'web_search to research ideas if you need them (each web search asks the user to approve sending the ' +
+  'query), THEN call create_itinerary ONCE with the full structure — a title and an ordered list of ' +
+  'days, each with its stops. To add stops to the CURRENT trip\'s focused day instead, use propose_stops. ' +
+  'search_places looks up a specific place\'s coordinates so its stop gets a map pin — it only works once ' +
+  'the user has enabled online maps for the trip; include lat/lng in your stops when you have them. ' +
+  'Everything you create is PROPOSED as a pending change the user accepts or rejects in the UI (there is ' +
+  'no permission popup for proposals, and nothing changes until they accept) — just call the tool and let ' +
+  'them decide. If the user rejects a proposal or denies a web search, stop and explain — do not retry. ' +
+  'When you learn a durable preference about the user, call remember.'
 
 const SEARCH_PROMPT =
   'You are a web research assistant. Use web_search(query, count?) to look things up on the web — the ' +
@@ -120,6 +134,7 @@ export interface AppServices {
   preview: PreviewStore
   searchResults: SearchResultsStore
   research: ResearchRegistry
+  geo: GeoRegistry
 }
 
 export interface CreateServicesOpts {
@@ -181,6 +196,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     kanban.createProject({ name: p.name, description: p.description })
     return true
   })
+  applier.register('trip', (c) => trip.applyProposal(c.payload as import('../modules/trip/types').TripProposalPayload))
 
   // Web search: pluggable research providers; SearXNG adapter calls the local instance directly.
   // (Default URL is a constant for now; a Settings server-config will make it editable later.)
@@ -188,6 +204,11 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   research.register(new SearxngProvider('http://localhost:8888'))
   const searchProvider = research.get('searxng')!
   const searchResults = new SearchResultsStore()
+
+  // Geo: pluggable geocoding/routing. Default OSM (Nominatim + OSRM); self-host later via the seam.
+  const geo = new GeoRegistry()
+  geo.register(new OsmGeoProvider())
+  const geoProvider = geo.get('osm')!
 
   // Inject live state into each feature agent's system prompt every run, so it knows the active
   // document / open board (and which sub-boards exist) instead of guessing.
@@ -213,7 +234,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   }
   const settings = createSettingsFeature({ theme, memory, clearAll })
   const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent, proposals, applier })
-  const tripFeature = createTripFeature({ store: trip, engine: tripEngine, broker, accent: agentAccent })
+  const tripFeature = createTripFeature({ store: trip, engine: tripEngine, broker, accent: agentAccent, provider: geoProvider, proposals, applier })
 
   const searchToolRegistry = new Registry()
   const searchEngine = new AgentEngine(client, searchToolRegistry, broker, 'search-chat')
@@ -229,7 +250,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   for (const mod of search.modules) searchToolRegistry.register(mod.tools)
   searchToolRegistry.register(memoryModule.tools)
   for (const mod of tripFeature.modules) tripRegistry.register(mod.tools)
+  for (const mod of search.modules) tripRegistry.register(mod.tools) // Trip can also web-search (research) to build itineraries
+  tripRegistry.register(createTripTools({ store: trip, proposals, geocode: (q) => geoProvider.geocode(q) }))
   tripRegistry.register(memoryModule.tools)
+  tripEngine.setContextProvider(() => describeTripContext(trip))
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
@@ -239,6 +263,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry, prompt: NOTES_PROMPT, contextProvider: () => describeNotesContext(library, docStore, proposals) }],
     ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, prompt: BOARD_PROMPT, contextProvider: () => describeKanbanContext(kanban, kanbanNav, proposals) }],
     ['search', { id: 'search', title: 'Search', description: 'Search the WEB for up-to-date information (news, travel ideas, current facts) the local model and documents lack. Returns cited results; the user approves each query before it is sent.', registry: searchToolRegistry, prompt: SEARCH_PROMPT, informational: true }],
+    ['trip', { id: 'trip', title: 'Trip', description: 'Research destinations and BUILD a complete day-by-day travel itinerary on a map (create_itinerary creates the whole trip), or add stops to an existing trip. Delegate here to PLAN or BUILD any trip or itinerary.', registry: tripRegistry, prompt: TRIP_PROMPT, contextProvider: () => describeTripContext(trip) }],
   ])
 
   const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), uid)
@@ -257,6 +282,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const previewRenderers = {
     notes: notes.modules.find((m) => m.id === 'doc-editor')!.render,
     kanban: board.modules.find((m) => m.id === 'kanban-board')!.render,
+    trip: tripFeature.modules.find((m) => m.id === 'trip-day-strip')!.render,
   }
 
   const orchestrator = createOrchestratorFeature({
@@ -324,5 +350,5 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, trip }
+  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip }
 }

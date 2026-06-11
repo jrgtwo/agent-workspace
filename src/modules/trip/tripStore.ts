@@ -1,5 +1,5 @@
 import { Emitter } from '../../core/emitter'
-import type { Day, StopInput, Trip, TripState } from './types'
+import type { Day, ItineraryDayInput, StopInput, Trip, TripProposalPayload, TripState } from './types'
 
 /**
  * TripStore — the itinerary's data brain. Holds trips → days → stops in immutable state and
@@ -67,6 +67,39 @@ export class TripStore extends Emitter<TripState> {
       this.state.activeId === id ? (trips[0]?.days[0]?.id ?? null) : this.state.focusedDayId
     this.state = { trips, activeId, focusedDayId }
     this.notify()
+  }
+
+  setMapsEnabled(tripId: string, enabled: boolean): void {
+    this.updateTrip(tripId, (t) => ({ ...t, mapsEnabled: enabled }))
+  }
+
+  /** Create a complete new trip (days + stops) and make it active+focused. Returns its id. */
+  buildItinerary(input: { title: string; days: ItineraryDayInput[] }): string {
+    const id = this.genId()
+    const src = input.days.length ? input.days : [{ label: 'Day 1', stops: [] }]
+    const days: Day[] = src.map((d, i) => ({
+      id: this.genId(),
+      label: d.label?.trim() || `Day ${i + 1}`,
+      date: d.date,
+      stops: (d.stops ?? []).map((s) => ({ ...s, id: this.genId(), name: s.name.trim() || 'Untitled stop' })),
+    }))
+    const trip: Trip = { id, title: input.title?.trim() || 'Untitled Trip', mapsEnabled: false, days }
+    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: days[0]?.id ?? null }
+    this.notify()
+    return id
+  }
+
+  /** Apply a pending agent proposal. Returns whether it applied. */
+  applyProposal(payload: TripProposalPayload): boolean {
+    if (payload.kind === 'build-itinerary') {
+      this.buildItinerary({ title: payload.title, days: payload.days })
+      return true
+    }
+    const trip = this.getTrip(payload.tripId)
+    const day = trip?.days.find((d) => d.id === payload.dayId)
+    if (!trip || !day) return false
+    for (const input of payload.stops) this.addStop(trip.id, day.id, input)
+    return true
   }
 
   // ---- days ----

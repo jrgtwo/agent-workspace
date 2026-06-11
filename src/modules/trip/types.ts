@@ -41,10 +41,9 @@ export interface StopInput {
   category?: string
 }
 
-/** A pending agent proposal to add stops to a day (Milestone 3). */
-export interface TripProposalPayload {
-  kind: 'add-stops'
-  tripId: string
-  dayId: string
-  stops: StopInput[]
-}
+export interface ItineraryDayInput { label: string; date?: string; stops: StopInput[] }
+
+/** A pending agent proposal against the trip module. */
+export type TripProposalPayload =
+  | { kind: 'add-stops'; tripId: string; dayId: string; stops: StopInput[] }
+  | { kind: 'build-itinerary'; title: string; days: ItineraryDayInput[] }

@@ -175,7 +175,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
 
   // Inject live state into each feature agent's system prompt every run, so it knows the active
   // document / open board (and which sub-boards exist) instead of guessing.
-  notesEngine.setContextProvider(() => describeNotesContext(library, docStore))
+  notesEngine.setContextProvider(() => describeNotesContext(library, docStore, proposals))
   boardEngine.setContextProvider(() => describeKanbanContext(kanban, kanbanNav, proposals))
 
   // Image blobs are stored locally in 'doc-images' scope (privacy: never uploaded).
@@ -217,9 +217,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const orchestratorEngine = new AgentEngine(client, orchestratorRegistry, broker, 'orchestrator', 10)
 
   const featureAgents: FeatureAgentRegistry = new Map([
-    ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry, contextProvider: () => describeNotesContext(library, docStore) }],
-    ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, contextProvider: () => describeKanbanContext(kanban, kanbanNav, proposals) }],
-    ['search', { id: 'search', title: 'Search', description: 'Search the WEB for up-to-date information (news, travel ideas, current facts) the local model and documents lack. Returns cited results; the user approves each query before it is sent.', registry: searchToolRegistry, informational: true }],
+    ['notes', { id: 'notes', title: 'Notes', description: "Read, edit, and create the user's markdown documents.", registry: notesRegistry, prompt: NOTES_PROMPT, contextProvider: () => describeNotesContext(library, docStore, proposals) }],
+    ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, prompt: BOARD_PROMPT, contextProvider: () => describeKanbanContext(kanban, kanbanNav, proposals) }],
+    ['search', { id: 'search', title: 'Search', description: 'Search the WEB for up-to-date information (news, travel ideas, current facts) the local model and documents lack. Returns cited results; the user approves each query before it is sent.', registry: searchToolRegistry, prompt: SEARCH_PROMPT, informational: true }],
   ])
 
   const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), uid)

@@ -57,7 +57,39 @@ describe('ChangeApprovalModal', () => {
     render(<ChangeApprovalModal proposals={proposals} applier={applier} />)
     expect(screen.getByText(/2 pending/i)).toBeTruthy()
     expect(screen.getByText('Create board "A"')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /accept/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i })) // the single Accept, not "Accept all"
     expect(screen.getByText('Create board "B"')).toBeTruthy()
+  })
+
+  it('offers Accept all / Reject all when multiple changes are queued, applying every one', () => {
+    const { proposals, applier } = setup()
+    const applied: string[] = []
+    applier.register('kanban-project', (c) => { applied.push(c.id); return true })
+    proposals.propose({ moduleId: 'kanban-project', summary: 'A', payload: {} })
+    proposals.propose({ moduleId: 'kanban-project', summary: 'B', payload: {} })
+    render(<ChangeApprovalModal proposals={proposals} applier={applier} />)
+    fireEvent.click(screen.getByRole('button', { name: /accept all/i }))
+    expect(applied).toHaveLength(2)
+    expect(proposals.getState().pending).toHaveLength(0)
+  })
+
+  it('Reject all discards every queued change without applying', () => {
+    const { proposals, applier } = setup()
+    let applied = 0
+    applier.register('kanban-project', () => { applied++; return true })
+    proposals.propose({ moduleId: 'kanban-project', summary: 'A', payload: {} })
+    proposals.propose({ moduleId: 'kanban-project', summary: 'B', payload: {} })
+    render(<ChangeApprovalModal proposals={proposals} applier={applier} />)
+    fireEvent.click(screen.getByRole('button', { name: /reject all/i }))
+    expect(applied).toBe(0)
+    expect(proposals.getState().pending).toHaveLength(0)
+  })
+
+  it('does NOT show Accept all when only one change is queued', () => {
+    const { proposals, applier } = setup()
+    applier.register('kanban-project', () => true)
+    proposals.propose({ moduleId: 'kanban-project', summary: 'only one', payload: {} })
+    render(<ChangeApprovalModal proposals={proposals} applier={applier} />)
+    expect(screen.queryByRole('button', { name: /accept all/i })).toBeNull()
   })
 })

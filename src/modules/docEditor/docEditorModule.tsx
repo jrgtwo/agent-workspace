@@ -98,6 +98,12 @@ export function createDocEditorModule(
       },
       handler: (a: { text: string; reason?: string }) => {
         if (!a.text?.trim()) return { proposed: false, error: '`text` must not be empty.' }
+        // Loop guard: don't re-propose an identical append that's already pending (the agent can't see its
+        // own pending proposals in the notes snapshot). Distinct appends are fine.
+        const alreadyPending = proposals.forModule('doc-editor-append').some((c) => (c.payload as DocAppendPayload).text.trim() === a.text.trim())
+        if (alreadyPending) {
+          return { ok: true, alreadyPending: true, message: 'That append is already pending your review — not duplicating it.' }
+        }
         const preview = a.text.length > 60 ? a.text.slice(0, 60) + '…' : a.text
         proposals.propose({
           moduleId: 'doc-editor-append',
@@ -119,6 +125,11 @@ export function createDocEditorModule(
       parameters: { type: 'object', properties: { name: { type: 'string' } } },
       handler: (a: { name?: string }) => {
         const name = a?.name ?? 'Untitled.md'
+        // Loop guard: don't re-propose a new document with a name already pending.
+        const alreadyPending = proposals.forModule('doc-library').some((c) => ((c.payload as { name?: string }).name ?? 'Untitled.md') === name)
+        if (alreadyPending) {
+          return { ok: true, alreadyPending: true, message: `A new document "${name}" is already pending — not duplicating it.` }
+        }
         proposals.propose({
           moduleId: 'doc-library',
           summary: `Create document "${name}"`,

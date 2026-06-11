@@ -24,6 +24,9 @@ export interface FeatureAgent {
   title: string
   description: string
   registry: Registry
+  /** The feature's own system prompt (tool list + behavior rules). Seeded into the delegated subagent so
+   *  it's steered as well as the feature's own chat agent, not just the generic worker prompt. */
+  prompt?: string
   /** Optional live-state snapshot, injected into the delegated subagent's system prompt each run. */
   contextProvider?: () => string
   /** True for read-only/answer features (e.g. search) that legitimately produce no proposals;

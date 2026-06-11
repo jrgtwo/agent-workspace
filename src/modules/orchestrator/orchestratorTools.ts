@@ -96,7 +96,9 @@ export function createOrchestratorTools(deps: OrchestratorToolDeps): ToolDef[] {
         if (stepId) plan.updateStep(stepId, { status: 'running' })
         const before = new Set(proposals.getState().pending.map((p) => p.id))
         const sub = new AgentEngine(client, feature.registry, broker, surfaceId, subagentMaxIters)
-        sub.seedSystem(SUBAGENT_SYSTEM)
+        // Seed the feature's own prompt (tool discipline) PLUS the worker/report-back framing, so the
+        // subagent is steered as well as the feature's own chat agent — not just the generic prompt.
+        sub.seedSystem(feature.prompt ? `${feature.prompt}\n\n${SUBAGENT_SYSTEM}` : SUBAGENT_SYSTEM)
         if (feature.contextProvider) sub.setContextProvider(feature.contextProvider)
         try {
           const result = await sub.run(a.task)

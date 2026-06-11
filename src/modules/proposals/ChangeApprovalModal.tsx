@@ -31,6 +31,12 @@ export function ChangeApprovalModal({ proposals, applier }: { proposals: Proposa
           <button type="button" className="chat-perm__btn chat-perm__btn--allow" onClick={() => applier.accept(change)}>Accept</button>
           <button type="button" className="chat-perm__btn" onClick={() => applier.reject(change)}>Reject</button>
         </div>
+        {queue.length > 1 && (
+          <div className="chat-perm__row">
+            <button type="button" className="chat-perm__btn chat-perm__btn--allow" onClick={() => { for (const c of [...queue]) applier.accept(c) }}>Accept all ({queue.length})</button>
+            <button type="button" className="chat-perm__btn" onClick={() => { for (const c of [...queue]) applier.reject(c) }}>Reject all</button>
+          </div>
+        )}
       </div>
     </div>
   )

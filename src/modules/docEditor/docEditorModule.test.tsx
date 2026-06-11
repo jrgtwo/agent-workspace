@@ -45,6 +45,24 @@ describe('docEditor tools propose instead of mutating', () => {
     expect(tool('append_document').permission).toBeUndefined()
   })
 
+  it('append_document skips a re-proposal of an identical pending append (loop guard), but allows distinct text', async () => {
+    const { proposals, tool } = build()
+    await tool('append_document').handler({ text: 'Same para.' })
+    const dupe = await tool('append_document').handler({ text: 'Same para.' }) as { alreadyPending?: boolean }
+    expect(dupe.alreadyPending).toBe(true)
+    expect(proposals.forModule('doc-editor-append')).toHaveLength(1)
+    await tool('append_document').handler({ text: 'A different para.' })
+    expect(proposals.forModule('doc-editor-append')).toHaveLength(2)
+  })
+
+  it('create_document skips a re-proposal of a new doc with a name already pending', async () => {
+    const { proposals, tool } = build()
+    await tool('create_document').handler({ name: 'Plan.md' })
+    const dupe = await tool('create_document').handler({ name: 'Plan.md' }) as { alreadyPending?: boolean }
+    expect(dupe.alreadyPending).toBe(true)
+    expect(proposals.forModule('doc-library')).toHaveLength(1)
+  })
+
   it('create_document enqueues a doc-library proposal carrying the name', async () => {
     const { proposals, tool } = build()
     const res = await tool('create_document').handler({ name: 'Plan.md' })

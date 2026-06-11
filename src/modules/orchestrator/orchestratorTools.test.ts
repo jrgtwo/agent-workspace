@@ -200,4 +200,22 @@ describe('orchestrator tools', () => {
     expect(res.changesProposed).toBe(1)
     expect(res.result).toContain('Create board "Launch"')
   })
+
+  it('seeds the subagent with the feature\'s own prompt (so subagents are steered like the feature chat)', async () => {
+    const plan = makePlan(); await plan.init('A')
+    const registry = new Registry()
+    registry.register([{ name: 'do_work', description: 'w', parameters: { type: 'object', properties: {} }, handler: () => ({ ok: true }) }])
+    const featureAgents: FeatureAgentRegistry = new Map([
+      ['widget', { id: 'widget', title: 'W', description: 'd', registry, prompt: 'WIDGET FEATURE GUIDANCE' }],
+    ])
+    const seen: { role: string; content: string }[][] = []
+    const client = { chat: async (msgs: { role: string; content: string }[]) => { seen.push(msgs); return { content: 'done', toolCalls: [] } } }
+    const tools = createOrchestratorTools({ plan, featureAgents, client, broker: new PermissionBroker(() => 'p'), surfaceId: 'orchestrator', proposals: new ProposalStore(() => 'c'), preview: new PreviewStore() })
+
+    await tools.find((t) => t.name === 'delegate')!.handler({ targetFeature: 'widget', task: 'do it' })
+
+    const sys = seen[0].find((m) => m.role === 'system')
+    expect(sys?.content).toContain('WIDGET FEATURE GUIDANCE')   // the feature's own prompt
+    expect(sys?.content).toMatch(/worker|summary/i)            // plus the delegation framing
+  })
 })

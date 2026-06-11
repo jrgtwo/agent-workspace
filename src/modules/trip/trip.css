@@ -1,0 +1,90 @@
+/* trip — day-strip itinerary panel */
+
+.day-strip {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: var(--space-3);
+  background: var(--bg);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.day-col {
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  padding: var(--space-3);
+}
+
+.day-col[data-focused='true'] {
+  border-color: var(--accent);
+}
+
+.day-col__head {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--label-tracking);
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.stop-row {
+  display: flex;
+  gap: var(--space-1);
+  align-items: baseline;
+  padding: 2px 0;
+}
+
+.stop-row__time {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2em;
+}
+
+.stop-row__rm {
+  margin-left: auto;
+  opacity: .5;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  color: inherit;
+}
+
+.stop-row__rm:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.day-strip__add {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.add-stop input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  padding: 4px 6px;
+  font: inherit;
+}
+
+.add-stop input:focus {
+  border-color: var(--accent);
+  outline: none;
+}

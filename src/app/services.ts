@@ -27,6 +27,8 @@ import { createOrchestratorTools, type FeatureAgentRegistry } from '../modules/o
 import { describeOrchestratorContext } from '../modules/orchestrator/context'
 import { KanbanStore } from '../modules/kanban/kanbanStore'
 import { KanbanNavStore } from '../modules/kanban/kanbanNavStore'
+import { TripStore } from '../modules/trip/tripStore'
+import { createTripFeature } from '../features/trip'
 import { describeKanbanContext } from '../modules/kanban/context'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { describeNotesContext } from '../modules/docEditor/context'
@@ -82,6 +84,11 @@ const ORCHESTRATOR_PROMPT =
   'Just chat normally when no action is needed. When you learn a durable preference about the user, ' +
   'call remember.'
 
+const TRIP_PROMPT =
+  'You are a local, privacy-first travel-planning assistant embedded in a trip planner. ' +
+  'You help the user build a day-by-day itinerary of places. When you learn a durable preference ' +
+  'about the user, call the remember tool.'
+
 const SEARCH_PROMPT =
   'You are a web research assistant. Use web_search(query, count?) to look things up on the web — the ' +
   'local model and the user\'s documents do not have live/current information. Every search leaves the ' +
@@ -109,6 +116,7 @@ export interface AppServices {
   agentAccent: AgentAccentStore
   kanban: KanbanStore
   kanbanNav: KanbanNavStore
+  trip: TripStore
   preview: PreviewStore
   searchResults: SearchResultsStore
   research: ResearchRegistry
@@ -142,8 +150,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   // One registry + one engine PER FEATURE: each agent sees only its own feature's tools.
   const notesRegistry = new Registry()
   const boardRegistry = new Registry()
+  const tripRegistry = new Registry()
   const notesEngine = new AgentEngine(client, notesRegistry, broker, 'notes-chat')
   const boardEngine = new AgentEngine(client, boardRegistry, broker, 'board-chat')
+  const tripEngine = new AgentEngine(client, tripRegistry, broker, 'trip-chat')
 
   // The document library owns the 'doc-editor' scope (index/active/doc:<id>) and hydrates
   // the active document into docStore. Memory/theme/accent persist via the declarative helper.
@@ -159,6 +169,12 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const kanban = new KanbanStore(uid)
   const kanbanNav = new KanbanNavStore()
   await persistState(kanban, storage.scope('kanban'), 'state')
+
+  // Trip planner: its own store + scope. Auto-create a starter trip on a fresh workspace.
+  const trip = new TripStore(uid)
+  await persistState(trip, storage.scope('trip'), 'state')
+  if (!trip.getState().trips.length) trip.createTrip('My Trip')
+
   applier.register('kanban-board', (c) => kanban.applyProposal(c.payload as import('../modules/kanban/types').KanbanProposalPayload))
   applier.register('kanban-project', (c) => {
     const p = c.payload as { name: string; description?: string }
@@ -197,6 +213,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   }
   const settings = createSettingsFeature({ theme, memory, clearAll })
   const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent, proposals, applier })
+  const tripFeature = createTripFeature({ store: trip, engine: tripEngine, broker, accent: agentAccent })
 
   const searchToolRegistry = new Registry()
   const searchEngine = new AgentEngine(client, searchToolRegistry, broker, 'search-chat')
@@ -211,6 +228,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   boardRegistry.register(memoryModule.tools)
   for (const mod of search.modules) searchToolRegistry.register(mod.tools)
   searchToolRegistry.register(memoryModule.tools)
+  for (const mod of tripFeature.modules) tripRegistry.register(mod.tools)
+  tripRegistry.register(memoryModule.tools)
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
@@ -290,13 +309,20 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     getKey: () => 'search',
     source: { subscribe: () => () => {} },
   })
+  await createFeatureChatController({
+    engine: tripEngine,
+    scope: storage.scope('trip-chat'),
+    systemPrompt: TRIP_PROMPT,
+    getKey: () => trip.getState().activeId ?? '__no_trip__',
+    source: trip,
+  })
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings, board, search, orchestrator]) {
+  for (const feature of [notes, styleguide, settings, board, search, orchestrator, tripFeature]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research }
+  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, trip }
 }

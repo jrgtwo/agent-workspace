@@ -7,7 +7,7 @@ import type { Day, ItineraryDayInput, StopInput, Trip, TripProposalPayload, Trip
  * (getState/subscribe/hydrate), so this store knows nothing about storage. Mirrors KanbanStore.
  */
 export class TripStore extends Emitter<TripState> {
-  private state: TripState = { trips: [], activeId: null, focusedDayId: null }
+  private state: TripState = { trips: [], activeId: null, focusedDayId: null, selectedStopId: null }
   private genId: () => string
 
   constructor(genId: () => string) {
@@ -22,6 +22,7 @@ export class TripStore extends Emitter<TripState> {
       trips: state.trips ?? [],
       activeId: state.activeId ?? null,
       focusedDayId: state.focusedDayId ?? null,
+      selectedStopId: state.selectedStopId ?? null,
     }
     this.notify()
   }
@@ -40,7 +41,7 @@ export class TripStore extends Emitter<TripState> {
     const id = this.genId()
     const day: Day = { id: this.genId(), label: 'Day 1', stops: [] }
     const trip: Trip = { id, title: title?.trim() || 'Untitled Trip', mapsEnabled: false, days: [day] }
-    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: day.id }
+    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: day.id, selectedStopId: null }
     this.notify()
     return id
   }
@@ -48,7 +49,13 @@ export class TripStore extends Emitter<TripState> {
   switchTrip(id: string): void {
     const trip = this.getTrip(id)
     if (!trip) return
-    this.state = { ...this.state, activeId: id, focusedDayId: trip.days[0]?.id ?? null }
+    this.state = { ...this.state, activeId: id, focusedDayId: trip.days[0]?.id ?? null, selectedStopId: null }
+    this.notify()
+  }
+
+  /** Highlight a stop on the map (clicked in the day list). Pass null to clear. */
+  selectStop(stopId: string | null): void {
+    this.state = { ...this.state, selectedStopId: stopId }
     this.notify()
   }
 
@@ -65,7 +72,7 @@ export class TripStore extends Emitter<TripState> {
     const activeId = this.state.activeId === id ? (trips[0]?.id ?? null) : this.state.activeId
     const focusedDayId =
       this.state.activeId === id ? (trips[0]?.days[0]?.id ?? null) : this.state.focusedDayId
-    this.state = { trips, activeId, focusedDayId }
+    this.state = { trips, activeId, focusedDayId, selectedStopId: null }
     this.notify()
   }
 
@@ -90,7 +97,7 @@ export class TripStore extends Emitter<TripState> {
       mapsEnabled: false,
       days,
     }
-    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: days[0]?.id ?? null }
+    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: days[0]?.id ?? null, selectedStopId: null }
     this.notify()
     return id
   }

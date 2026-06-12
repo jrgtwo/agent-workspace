@@ -1,9 +1,6 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import iconUrl from 'leaflet/dist/images/marker-icon.png'
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { TripStore } from './tripStore'
@@ -12,7 +9,13 @@ import { routeLatLngs } from './routeLine'
 import type { GeoProvider, RouteGeometry } from '../../core/geo/types'
 import './trip.css'
 
-const DefaultIcon = L.icon({ iconUrl, iconRetinaUrl, shadowUrl, iconSize: [25, 41], iconAnchor: [12, 41] })
+const numberedIcon = (n: number, selected: boolean) =>
+  L.divIcon({
+    className: `trip-pin${selected ? ' trip-pin--selected' : ''}`,
+    html: `<span>${n}</span>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  })
 
 function TripMap({ store, broker, provider }: { store: TripStore; broker: BrokerLike; provider: GeoProvider }) {
   useStore(store) // re-render on trip/stop/focus/consent change
@@ -25,7 +28,10 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
 
   const enabled = !!trip?.mapsEnabled
   const day = trip?.days.find((d) => d.id === focusedDayId)
-  const pins = (day?.stops ?? []).filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
+  const located = (day?.stops ?? [])
+    .map((s, i) => ({ ...s, n: i + 1 }))
+    .filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
+  const selectedStopId = store.getState().selectedStopId
 
   useEffect(() => {
     if (!enabled || !elRef.current || mapRef.current) return
@@ -44,25 +50,32 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
     if (!layer || !mapRef.current) return
     let cancelled = false
     layer.clearLayers()
-    if (!pins.length) return
-    for (const s of pins) L.marker([s.lat!, s.lng!], { icon: DefaultIcon }).bindTooltip(s.name).addTo(layer)
+    if (!located.length) return
+    for (const s of located) {
+      const selected = s.id === selectedStopId
+      const m = L.marker([s.lat!, s.lng!], { icon: numberedIcon(s.n, selected) })
+        .bindTooltip(`${s.n}. ${s.name}`)
+        .addTo(layer)
+      m.on('click', () => store.selectStop(s.id))
+      if (selected) { m.openTooltip(); mapRef.current!.panTo([s.lat!, s.lng!]) }
+    }
     const draw = (geom: RouteGeometry | null) => {
       if (cancelled || !layerRef.current) return
-      const line = routeLatLngs(pins.map((s) => ({ lat: s.lat!, lng: s.lng! })), geom)
+      const line = routeLatLngs(located.map((s) => ({ lat: s.lat!, lng: s.lng! })), geom)
       L.polyline(line, { color: '#2b6cb0', weight: 3, dashArray: geom ? undefined : '6 5' }).addTo(layerRef.current)
     }
-    if (pins.length >= 2 && enabled) {
-      provider.route(pins.map((s) => ({ lat: s.lat!, lng: s.lng! })))
+    if (located.length >= 2 && enabled) {
+      provider.route(located.map((s) => ({ lat: s.lat!, lng: s.lng! })))
         .then((r) => { geomRef.current = r.geometry; draw(r.geometry) })
         .catch(() => draw(null)) // routing failed → straight dashed lines
     } else {
       draw(null)
     }
-    mapRef.current.fitBounds(L.latLngBounds(pins.map((s) => [s.lat!, s.lng!] as [number, number])).pad(0.2))
+    mapRef.current.fitBounds(L.latLngBounds(located.map((s) => [s.lat!, s.lng!] as [number, number])).pad(0.2))
     return () => { cancelled = true }
     // `enabled` + `focusedDayId` are deps so markers/route repaint when the map is (re)created
-    // after a maps off→on toggle — the pins string alone is unchanged across a toggle.
-  }, [enabled, focusedDayId, pins.map((s) => `${s.id}:${s.lat},${s.lng}`).join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
+    // after a maps off→on toggle — the located string alone is unchanged across a toggle.
+  }, [enabled, focusedDayId, selectedStopId, located.map((s) => `${s.id}:${s.lat},${s.lng}`).join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Agent-built itineraries arrive as stop names with no coordinates. When maps are on, geocode the
   // focused day's coordinate-less stops so they get pins and the map centers on the real place (e.g.
@@ -79,7 +92,7 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
       missing.map(async (s) => {
         try {
           const hit = (await provider.geocode(query(s.name)))[0]
-          if (!cancelled && hit) store.updateStop(trip.id, day.id, s.id, { lat: hit.lat, lng: hit.lng })
+          if (!cancelled && hit) store.updateStop(trip.id, day.id, s.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name })
         } catch { /* leave the stop pin-less */ }
       }),
     )

@@ -55,7 +55,7 @@ function TripHeader({ store }: { store: TripStore }) {
 }
 
 function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; review?: ReviewDeps }) {
-  const { focusedDayId } = useStore(store)
+  const { focusedDayId, selectedStopId } = useStore(store)
   const trip = store.getActiveTrip()
   if (!trip) {
     return (
@@ -71,9 +71,17 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
     if (trip.mapsEnabled && geo) {
       try {
         const hit = (await geo.geocode(trip.destination ? `${name}, ${trip.destination}` : name))[0]
-        if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, category: hit.category })
+        if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
       } catch { /* leave the stop pin-less; surfaced elsewhere */ }
     }
+  }
+
+  const locate = async (dayId: string, stop: { id: string; name: string }) => {
+    if (!geo) return
+    try {
+      const hit = (await geo.geocode(trip.destination ? `${stop.name}, ${trip.destination}` : stop.name))[0]
+      if (hit) store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
+    } catch { /* leave pin-less */ }
   }
 
   return (
@@ -86,12 +94,32 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
             <div className="day-col__head" onClick={() => store.focusDay(d.id)}>
               <span>{d.label}{d.date ? ` · ${d.date}` : ''}</span>
             </div>
-            {d.stops.map((s) => (
-              <div key={s.id} className="stop-row">
+            {d.stops.map((s, i) => (
+              <div
+                key={s.id}
+                className="stop-row"
+                data-selected={s.id === selectedStopId}
+                onClick={() => { store.selectStop(s.id); store.focusDay(d.id) }}
+              >
+                <span className="stop-row__num">{i + 1}</span>
                 {s.time && <span className="stop-row__time">{s.time}</span>}
-                <span>{s.name}</span>
-                <button className="stop-row__rm" aria-label={`Remove ${s.name}`}
-                  onClick={() => store.removeStop(trip.id, d.id, s.id)}>×</button>
+                <span className="stop-row__name">{s.name}</span>
+                {typeof s.lat === 'number' && typeof s.lng === 'number' ? (
+                  <span className="stop-row__loc" aria-label={`On the map: ${s.placeName ?? s.name}`} title={s.placeName ?? 'On the map'}>📍</span>
+                ) : (trip.mapsEnabled || !!geo) ? (
+                  <button
+                    className="stop-row__locate"
+                    aria-label={`Locate ${s.name}`}
+                    onClick={(e) => { e.stopPropagation(); void locate(d.id, s) }}
+                  >Locate</button>
+                ) : (
+                  <span className="stop-row__loc stop-row__loc--off" title="Off the map" aria-hidden="true">○</span>
+                )}
+                <button
+                  className="stop-row__rm"
+                  aria-label={`Remove ${s.name}`}
+                  onClick={(e) => { e.stopPropagation(); store.removeStop(trip.id, d.id, s.id) }}
+                >×</button>
               </div>
             ))}
             <AddStop onAdd={(name) => void addStop(d.id, name)} />

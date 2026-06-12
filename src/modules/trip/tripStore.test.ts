@@ -42,7 +42,24 @@ describe('TripStore — trips', () => {
       trips: [{ id: 'x', title: 'Hydrated', mapsEnabled: true, days: [] }],
       activeId: 'x',
       focusedDayId: null,
+      selectedStopId: null,
     })
     expect(s.getTrip('x')!.title).toBe('Hydrated')
+  })
+
+  it('selectStop sets and clears the selected stop; switching trips clears it', () => {
+    const s = new TripStore(genId)
+    const a = s.createTrip('A')
+    s.selectStop('stop-1')
+    expect(s.getState().selectedStopId).toBe('stop-1')
+    s.selectStop(null)
+    expect(s.getState().selectedStopId).toBeNull()
+    s.selectStop('stop-2')
+    const b = s.createTrip('B')
+    expect(s.getState().selectedStopId).toBeNull() // cleared on new/switch
+    s.selectStop('stop-3')
+    s.switchTrip(a)
+    expect(s.getState().selectedStopId).toBeNull()
+    void b
   })
 })

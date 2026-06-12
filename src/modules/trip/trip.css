@@ -54,6 +54,27 @@
   gap: var(--space-1);
   align-items: baseline;
   padding: 2px 0;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+
+.stop-row[data-selected='true'] { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+.stop-row__num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.4em; height: 1.4em;
+  border-radius: 50%; background: var(--accent); color: var(--bg);
+  font-size: 11px; font-weight: 600; flex: 0 0 auto;
+}
+
+.stop-row__name { flex: 1 1 auto; }
+
+.stop-row__loc { opacity: .9; }
+.stop-row__loc--off { opacity: .35; }
+
+.stop-row__locate {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-control);
+  color: var(--accent); cursor: pointer; font-size: 11px; padding: 1px 6px;
 }
 
 .stop-row__time {
@@ -110,3 +131,9 @@
 .trip-map__toggle { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 500;
   background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-control);
   color: var(--text-muted); padding: 3px 8px; cursor: pointer; }
+
+.trip-pin { background: transparent; }
+.trip-pin span { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 50%; background: var(--accent); color: var(--bg); font: 600 12px/1 sans-serif;
+  border: 2px solid var(--bg); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.trip-pin--selected span { background: var(--text); color: var(--bg); transform: scale(1.25); }

@@ -94,10 +94,15 @@ const TRIP_PROMPT =
   'search_places, create_itinerary, propose_stops, remember — you have no others. ' +
   'To build a new itinerary from a request (e.g. "a 3-day Maui itinerary of the top sights"): first use ' +
   'web_search to research ideas if you need them (each web search asks the user to approve sending the ' +
-  'query), THEN call create_itinerary ONCE with the full structure — a title and an ordered list of ' +
-  'days, each with its stops. To add stops to the CURRENT trip\'s focused day instead, use propose_stops. ' +
-  'search_places looks up a specific place\'s coordinates so its stop gets a map pin — it only works once ' +
-  'the user has enabled online maps for the trip; include lat/lng in your stops when you have them. ' +
+  'query), THEN you MUST call create_itinerary to actually build it — describing the itinerary in your ' +
+  'reply does NOTHING; only calling the tool creates it. Call create_itinerary ONCE with a `title`, a ' +
+  '`destination` (the region, e.g. "Kauai, Hawaii" — ALWAYS include it so stops are placed on the right ' +
+  'island and not confused with same-named places elsewhere), and a single FLAT `stops` array, where ' +
+  'each stop has a `day` label (e.g. "Day 1") and a `name`; stops are grouped into days by their day ' +
+  'label. You do NOT need coordinates — the map looks up each stop by name within the destination. ' +
+  'To add stops to the CURRENT trip\'s focused day instead of building a new trip, use propose_stops. ' +
+  '(search_places is only for fetching a specific place\'s coordinates and needs online maps enabled; you ' +
+  'usually will not need it.) ' +
   'Everything you create is PROPOSED as a pending change the user accepts or rejects in the UI (there is ' +
   'no permission popup for proposals, and nothing changes until they accept) — just call the tool and let ' +
   'them decide. If the user rejects a proposal or denies a web search, stop and explain — do not retry. ' +

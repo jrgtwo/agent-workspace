@@ -62,15 +62,17 @@ describe('trip tools', () => {
     expect(proposals.forModule('trip')).toHaveLength(1)
   })
 
-  it('create_itinerary proposes ONE build-itinerary change with the right counts', () => {
+  it('create_itinerary groups a FLAT stop list into days and proposes ONE build-itinerary change', () => {
     const store = new TripStore(genId)
     const proposals = new ProposalStore(genId)
     const tools = createTripTools({ store, proposals, geocode: vi.fn() })
     const res = tool(tools, 'create_itinerary').handler({
       title: 'Maui',
-      days: [
-        { label: 'Day 1', stops: [{ name: 'Haleakalā' }, { name: 'Road to Hana' }] },
-        { label: 'Day 2', stops: [{ name: 'Molokini' }] },
+      destination: 'Maui, Hawaii',
+      stops: [
+        { day: 'Day 1', name: 'Haleakalā' },
+        { day: 'Day 1', name: 'Road to Hana' },
+        { day: 'Day 2', name: 'Molokini' },
       ],
     }) as { proposed: boolean; days: number; stops: number }
     expect(res.proposed).toBe(true)
@@ -78,6 +80,10 @@ describe('trip tools', () => {
     expect(res.stops).toBe(3)
     const pending = proposals.forModule('trip')
     expect(pending).toHaveLength(1)
-    expect((pending[0].payload as { kind: string }).kind).toBe('build-itinerary')
+    const payload = pending[0].payload as { kind: string; destination?: string; days: { label: string; stops: { name: string }[] }[] }
+    expect(payload.kind).toBe('build-itinerary')
+    expect(payload.destination).toBe('Maui, Hawaii')
+    expect(payload.days.map((d) => d.label)).toEqual(['Day 1', 'Day 2'])
+    expect(payload.days[0].stops.map((s) => s.name)).toEqual(['Haleakalā', 'Road to Hana'])
   })
 })

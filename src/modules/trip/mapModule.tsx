@@ -72,10 +72,13 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
     const missing = day.stops.filter((s) => typeof s.lat !== 'number' || typeof s.lng !== 'number')
     if (!missing.length) return
     let cancelled = false
+    // Scope each query to the trip's destination so "Shipwreck Beach" resolves on Kauai, not on the
+    // mainland — geocoding the bare name returns same-named places anywhere in the world.
+    const query = (name: string) => (trip.destination ? `${name}, ${trip.destination}` : name)
     void Promise.all(
       missing.map(async (s) => {
         try {
-          const hit = (await provider.geocode(s.name))[0]
+          const hit = (await provider.geocode(query(s.name)))[0]
           if (!cancelled && hit) store.updateStop(trip.id, day.id, s.id, { lat: hit.lat, lng: hit.lng })
         } catch { /* leave the stop pin-less */ }
       }),

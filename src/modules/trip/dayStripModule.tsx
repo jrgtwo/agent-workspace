@@ -70,7 +70,7 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
     const id = store.addStop(trip.id, dayId, { name })
     if (trip.mapsEnabled && geo) {
       try {
-        const hit = (await geo.geocode(name))[0]
+        const hit = (await geo.geocode(trip.destination ? `${name}, ${trip.destination}` : name))[0]
         if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, category: hit.category })
       } catch { /* leave the stop pin-less; surfaced elsewhere */ }
     }

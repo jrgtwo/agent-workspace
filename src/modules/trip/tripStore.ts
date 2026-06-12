@@ -74,7 +74,7 @@ export class TripStore extends Emitter<TripState> {
   }
 
   /** Create a complete new trip (days + stops) and make it active+focused. Returns its id. */
-  buildItinerary(input: { title: string; days: ItineraryDayInput[] }): string {
+  buildItinerary(input: { title: string; destination?: string; days: ItineraryDayInput[] }): string {
     const id = this.genId()
     const src = input.days.length ? input.days : [{ label: 'Day 1', stops: [] }]
     const days: Day[] = src.map((d, i) => ({
@@ -83,7 +83,13 @@ export class TripStore extends Emitter<TripState> {
       date: d.date,
       stops: (d.stops ?? []).map((s) => ({ ...s, id: this.genId(), name: s.name.trim() || 'Untitled stop' })),
     }))
-    const trip: Trip = { id, title: input.title?.trim() || 'Untitled Trip', mapsEnabled: false, days }
+    const trip: Trip = {
+      id,
+      title: input.title?.trim() || 'Untitled Trip',
+      destination: input.destination?.trim() || undefined,
+      mapsEnabled: false,
+      days,
+    }
     this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: days[0]?.id ?? null }
     this.notify()
     return id
@@ -92,7 +98,7 @@ export class TripStore extends Emitter<TripState> {
   /** Apply a pending agent proposal. Returns whether it applied. */
   applyProposal(payload: TripProposalPayload): boolean {
     if (payload.kind === 'build-itinerary') {
-      this.buildItinerary({ title: payload.title, days: payload.days })
+      this.buildItinerary({ title: payload.title, destination: payload.destination, days: payload.days })
       return true
     }
     const trip = this.getTrip(payload.tripId)

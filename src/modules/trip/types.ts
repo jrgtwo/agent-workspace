@@ -20,6 +20,7 @@ export interface Day {
 export interface Trip {
   id: string
   title: string
+  destination?: string  // region for the whole trip, e.g. 'Kauai, Hawaii' — scopes stop geocoding
   mapsEnabled: boolean  // per-trip online-maps consent (Milestone 2)
   days: Day[]
 }
@@ -46,4 +47,4 @@ export interface ItineraryDayInput { label: string; date?: string; stops: StopIn
 /** A pending agent proposal against the trip module. */
 export type TripProposalPayload =
   | { kind: 'add-stops'; tripId: string; dayId: string; stops: StopInput[] }
-  | { kind: 'build-itinerary'; title: string; days: ItineraryDayInput[] }
+  | { kind: 'build-itinerary'; title: string; destination?: string; days: ItineraryDayInput[] }

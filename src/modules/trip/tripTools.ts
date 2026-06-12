@@ -125,57 +125,55 @@ export function createTripTools(deps: {
   const createItinerary: ToolDef = {
     name: 'create_itinerary',
     description:
-      'Build a COMPLETE new trip in ONE call: a title plus an ordered list of days, each with its own ' +
-      'stops. Shown as a single pending change the user accepts. Use this to create an itinerary from ' +
-      'scratch (e.g. "a 3-day Maui itinerary"). Research first with web_search if you need ideas, and ' +
-      'include lat/lng from search_places when you have them so stops get map pins.',
+      'Build a COMPLETE new trip in ONE call. Pass a title and a SINGLE FLAT list of stops, where each ' +
+      'stop names the day it belongs to (e.g. "Day 1"). Stops are grouped into days in the order their ' +
+      'day labels first appear. Use this to create an itinerary from scratch (e.g. "a 3-day Maui ' +
+      'itinerary") — research first with web_search if you need ideas, then call this ONCE. You do NOT ' +
+      'need coordinates; the map looks up each stop\'s location by name. ALWAYS pass `destination` (the ' +
+      'region, e.g. "Kauai, Hawaii") so stops are located accurately and not confused with same-named ' +
+      'places elsewhere. Shown as one pending change the user accepts.',
     parameters: {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Trip title, e.g. "Maui Trip".' },
-        days: {
+        destination: { type: 'string', description: 'The region/place the whole trip is in, e.g. "Kauai, Hawaii" or "Maui". Used to locate stops on the map — ALWAYS provide it.' },
+        stops: {
           type: 'array',
-          description: 'The days of the trip, in order.',
+          description: 'A flat list of EVERY stop across the whole trip. Tag each with its day.',
           items: {
             type: 'object',
             properties: {
-              label: { type: 'string', description: 'Day label, e.g. "Day 1".' },
-              date: { type: 'string', description: 'Optional ISO date (YYYY-MM-DD).' },
-              stops: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string' },
-                    lat: { type: 'number' },
-                    lng: { type: 'number' },
-                    time: { type: 'string', description: "Optional clock label like '09:00'." },
-                    note: { type: 'string' },
-                  },
-                  required: ['name'],
-                },
-              },
+              day: { type: 'string', description: 'Which day this stop is on, e.g. "Day 1" or "Day 2".' },
+              name: { type: 'string', description: 'The place or activity, e.g. "Haleakalā National Park".' },
+              time: { type: 'string', description: "Optional clock label like '09:00'." },
+              note: { type: 'string', description: 'Optional short note.' },
             },
-            required: ['label'],
+            required: ['day', 'name'],
           },
         },
       },
-      required: ['title', 'days'],
+      required: ['title', 'stops'],
     },
-    handler: (a: { title?: string; days?: Array<{ label?: string; date?: string; stops?: StopInput[] }> }) => {
+    handler: (a: { title?: string; destination?: string; stops?: Array<{ day?: string; name?: string; time?: string; note?: string }> }) => {
       const title = String(a?.title ?? '').trim()
       if (!title) return { ok: false, error: '`title` is required.' }
-      const daysIn = Array.isArray(a?.days) ? a.days : []
-      if (!daysIn.length) return { ok: false, error: '`days` must be a non-empty array.' }
-      const days: ItineraryDayInput[] = daysIn.map((d, i) => ({
-        label: String(d?.label ?? '').trim() || `Day ${i + 1}`,
-        date: d?.date,
-        stops: (Array.isArray(d?.stops) ? d.stops : [])
-          .map((s) => ({ name: String(s?.name ?? '').trim(), lat: s?.lat, lng: s?.lng, time: s?.time, note: s?.note }))
-          .filter((s) => s.name),
-      }))
+      const destination = String(a?.destination ?? '').trim() || undefined
+      const list = Array.isArray(a?.stops) ? a.stops : []
+      if (!list.length) return { ok: false, error: '`stops` must be a non-empty flat array; tag each stop with a `day`.' }
+      // Group the flat stop list into days, preserving the order day labels first appear.
+      const order: string[] = []
+      const byDay = new Map<string, StopInput[]>()
+      for (const s of list) {
+        const name = String(s?.name ?? '').trim()
+        if (!name) continue
+        const dayLabel = String(s?.day ?? '').trim() || 'Day 1'
+        if (!byDay.has(dayLabel)) { byDay.set(dayLabel, []); order.push(dayLabel) }
+        byDay.get(dayLabel)!.push({ name, time: s?.time, note: s?.note })
+      }
+      const days: ItineraryDayInput[] = order.map((label) => ({ label, stops: byDay.get(label)! }))
+      if (!days.length) return { ok: false, error: 'No valid stops — each stop needs a `name`.' }
       const stopCount = days.reduce((n, d) => n + d.stops.length, 0)
-      const payload: TripProposalPayload = { kind: 'build-itinerary', title, days }
+      const payload: TripProposalPayload = { kind: 'build-itinerary', title, destination, days }
       proposals.propose({
         moduleId: MODULE_ID,
         summary: `Create itinerary "${title}": ${days.length} day${days.length === 1 ? '' : 's'}, ${stopCount} stop${stopCount === 1 ? '' : 's'}`,

@@ -86,4 +86,31 @@ describe('trip tools', () => {
     expect(payload.days.map((d) => d.label)).toEqual(['Day 1', 'Day 2'])
     expect(payload.days[0].stops.map((s) => s.name)).toEqual(['Haleakalā', 'Road to Hana'])
   })
+
+  it('create_itinerary carries an agent-provided `place` hint onto the stop', () => {
+    const store = new TripStore(genId)
+    const proposals = new ProposalStore(genId)
+    const tools = createTripTools({ store, proposals, geocode: vi.fn() })
+    tool(tools, 'create_itinerary').handler({
+      title: 'Kauai',
+      destination: 'Kauai, Hawaii',
+      stops: [{ day: 'Day 1', name: 'Dinner at Tidepools Restaurant', place: 'Tidepools Restaurant' }],
+    })
+    const payload = proposals.forModule('trip')[0].payload as TripProposalPayload
+    if (payload.kind !== 'build-itinerary') throw new Error('expected build-itinerary')
+    expect(payload.days[0].stops[0].place).toBe('Tidepools Restaurant')
+  })
+
+  it('propose_stops carries an agent-provided `place` hint onto the stop', async () => {
+    const store = new TripStore(genId)
+    store.createTrip('Kauai')
+    const proposals = new ProposalStore(genId)
+    const tools = createTripTools({ store, proposals, geocode: vi.fn() })
+    await tool(tools, 'propose_stops').handler({
+      stops: [{ name: 'Lunch at Merriman\'s', place: 'Merriman\'s Fish House' }],
+    })
+    const payload = proposals.forModule('trip')[0].payload as TripProposalPayload
+    if (payload.kind !== 'add-stops') throw new Error('expected add-stops')
+    expect(payload.stops[0].place).toBe('Merriman\'s Fish House')
+  })
 })

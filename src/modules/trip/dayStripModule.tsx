@@ -3,6 +3,7 @@ import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { TripStore } from './tripStore'
 import { PendingReview } from '../proposals/PendingReview'
+import { stopQuery } from './placeQuery'
 import type { ProposalStore } from '../../core/proposalStore'
 import type { ProposalApplier } from '../../core/proposalApplier'
 import './trip.css'
@@ -71,17 +72,17 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
     const id = store.addStop(trip.id, dayId, { name })
     if (trip.mapsEnabled && geo) {
       try {
-        const hit = (await geo.geocode(trip.destination ? `${name}, ${trip.destination}` : name))[0]
+        const hit = (await geo.geocode(stopQuery({ name }, trip.destination)))[0]
         if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
       } catch { /* leave the stop pin-less; surfaced elsewhere */ }
     }
   }
 
-  const locate = async (dayId: string, stop: { id: string; name: string }) => {
+  const locate = async (dayId: string, stop: { id: string; name: string; place?: string }) => {
     if (!geo) return
     setLocStatus((m) => ({ ...m, [stop.id]: 'busy' }))
     try {
-      const hit = (await geo.geocode(trip.destination ? `${stop.name}, ${trip.destination}` : stop.name))[0]
+      const hit = (await geo.geocode(stopQuery(stop, trip.destination)))[0]
       if (hit) {
         store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
         setLocStatus((m) => { const n = { ...m }; delete n[stop.id]; return n }) // row now shows 📍

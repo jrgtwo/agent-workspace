@@ -101,6 +101,8 @@ const TRIP_PROMPT =
   'island and not confused with same-named places elsewhere), and a single FLAT `stops` array, where ' +
   'each stop has a `day` label (e.g. "Day 1") and a `name`; stops are grouped into days by their day ' +
   'label. You do NOT need coordinates — the map looks up each stop by name within the destination. ' +
+  'When a `name` is an activity rather than a place (e.g. "Dinner at Tidepools Restaurant"), ALSO set ' +
+  '`place` to the bare venue or town to pin (e.g. "Tidepools Restaurant") so the map can find it. ' +
   'To add stops to the CURRENT trip\'s focused day instead of building a new trip, use propose_stops. ' +
   '(search_places is only for fetching a specific place\'s coordinates and needs online maps enabled; you ' +
   'usually will not need it.) ' +

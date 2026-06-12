@@ -59,6 +59,7 @@ export function createTripTools(deps: {
             type: 'object',
             properties: {
               name: { type: 'string' },
+              place: { type: 'string', description: 'The bare geocodable place to pin, e.g. "Tidepools Restaurant" — NOT the activity ("Dinner at Tidepools Restaurant"). Use the town/area if there is no specific venue.' },
               lat: { type: 'number' },
               lng: { type: 'number' },
               time: { type: 'string', description: "Optional clock label like '09:00'." },
@@ -101,7 +102,7 @@ export function createTripTools(deps: {
           continue
         }
         seen.add(key)
-        resolved.push({ name, lat: s.lat, lng: s.lng, time: s.time, note: s.note })
+        resolved.push({ name, place: s.place, lat: s.lat, lng: s.lng, time: s.time, note: s.note })
       }
 
       if (!resolved.length) {
@@ -144,7 +145,8 @@ export function createTripTools(deps: {
             type: 'object',
             properties: {
               day: { type: 'string', description: 'Which day this stop is on, e.g. "Day 1" or "Day 2".' },
-              name: { type: 'string', description: 'The place or activity, e.g. "Haleakalā National Park".' },
+              name: { type: 'string', description: 'The place or activity, e.g. "Haleakalā National Park" or "Dinner at Tidepools Restaurant".' },
+              place: { type: 'string', description: 'The bare geocodable place to pin, e.g. "Tidepools Restaurant" — NOT the activity. Use the town/area if there is no specific venue. Helps the map find activity-named stops.' },
               time: { type: 'string', description: "Optional clock label like '09:00'." },
               note: { type: 'string', description: 'Optional short note.' },
             },
@@ -154,7 +156,7 @@ export function createTripTools(deps: {
       },
       required: ['title', 'stops'],
     },
-    handler: (a: { title?: string; destination?: string; stops?: Array<{ day?: string; name?: string; time?: string; note?: string }> }) => {
+    handler: (a: { title?: string; destination?: string; stops?: Array<{ day?: string; name?: string; place?: string; time?: string; note?: string }> }) => {
       const title = String(a?.title ?? '').trim()
       if (!title) return { ok: false, error: '`title` is required.' }
       const destination = String(a?.destination ?? '').trim() || undefined
@@ -168,7 +170,7 @@ export function createTripTools(deps: {
         if (!name) continue
         const dayLabel = String(s?.day ?? '').trim() || 'Day 1'
         if (!byDay.has(dayLabel)) { byDay.set(dayLabel, []); order.push(dayLabel) }
-        byDay.get(dayLabel)!.push({ name, time: s?.time, note: s?.note })
+        byDay.get(dayLabel)!.push({ name, place: s?.place, time: s?.time, note: s?.note })
       }
       const days: ItineraryDayInput[] = order.map((label) => ({ label, stops: byDay.get(label)! }))
       if (!days.length) return { ok: false, error: 'No valid stops — each stop needs a `name`.' }

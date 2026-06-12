@@ -6,6 +6,7 @@ import type { WorkspaceModule } from '../../core/types'
 import type { TripStore } from './tripStore'
 import { requestEnableMaps, type BrokerLike } from './enableMaps'
 import { routeLatLngs } from './routeLine'
+import { stopQuery } from './placeQuery'
 import type { GeoProvider, RouteGeometry } from '../../core/geo/types'
 import './trip.css'
 
@@ -85,13 +86,12 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
     const missing = day.stops.filter((s) => typeof s.lat !== 'number' || typeof s.lng !== 'number')
     if (!missing.length) return
     let cancelled = false
-    // Scope each query to the trip's destination so "Shipwreck Beach" resolves on Kauai, not on the
-    // mainland — geocoding the bare name returns same-named places anywhere in the world.
-    const query = (name: string) => (trip.destination ? `${name}, ${trip.destination}` : name)
+    // stopQuery scopes to the trip destination ("Shipwreck Beach" → Kauai, not the mainland), prefers the
+    // agent's clean `place` hint, and strips activity framing ("Dinner at …") that otherwise resolves to nothing.
     void Promise.all(
       missing.map(async (s) => {
         try {
-          const hit = (await provider.geocode(query(s.name)))[0]
+          const hit = (await provider.geocode(stopQuery(s, trip.destination)))[0]
           if (!cancelled && hit) store.updateStop(trip.id, day.id, s.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name })
         } catch { /* leave the stop pin-less */ }
       }),

@@ -76,6 +76,32 @@ describe('day-list correlation', () => {
     expect(geocode).toHaveBeenCalledWith('Shipwreck Beach, Kauai, Hawaii')
   })
 
+  it('Locate strips activity framing from the name before geocoding', async () => {
+    let n = 0
+    const store = new TripStore(() => `c5-${++n}`)
+    store.applyProposal({ kind: 'build-itinerary', title: 'Kauai', destination: 'Kauai, Hawaii', days: [{ label: 'Day 1', stops: [{ name: 'Dinner at Tidepools Restaurant' }] }] })
+    const t = store.getActiveTrip()!.id
+    store.setMapsEnabled(t, true)
+    const geocode = vi.fn(async () => [{ name: 'Tidepools, Koloa, HI', lat: 21.87, lng: -159.45 }])
+    const mod = createDayStripModule(store, { geocode })
+    render(<>{mod.render()}</>)
+    fireEvent.click(screen.getByRole('button', { name: /locate Dinner at Tidepools Restaurant/i }))
+    await waitFor(() => expect(geocode).toHaveBeenCalledWith('Tidepools Restaurant, Kauai, Hawaii'))
+  })
+
+  it('Locate uses the agent `place` hint over the display name', async () => {
+    let n = 0
+    const store = new TripStore(() => `c6-${++n}`)
+    store.applyProposal({ kind: 'build-itinerary', title: 'Kauai', destination: 'Kauai, Hawaii', days: [{ label: 'Day 1', stops: [{ name: 'Farewell dinner in Hanalei', place: 'Hanalei' }] }] })
+    const t = store.getActiveTrip()!.id
+    store.setMapsEnabled(t, true)
+    const geocode = vi.fn(async () => [{ name: 'Hanalei, HI', lat: 22.2, lng: -159.5 }])
+    const mod = createDayStripModule(store, { geocode })
+    render(<>{mod.render()}</>)
+    fireEvent.click(screen.getByRole('button', { name: /locate Farewell dinner in Hanalei/i }))
+    await waitFor(() => expect(geocode).toHaveBeenCalledWith('Hanalei, Kauai, Hawaii'))
+  })
+
   it('shows "Not found" when Locate geocodes nothing (instead of silently no-op)', async () => {
     let n = 0
     const store = new TripStore(() => `c4-${++n}`)

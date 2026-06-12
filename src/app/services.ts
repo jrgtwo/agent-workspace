@@ -213,7 +213,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
 
   // Geo: pluggable geocoding/routing. Default OSM (Nominatim + OSRM); self-host later via the seam.
   const geo = new GeoRegistry()
-  geo.register(new OsmGeoProvider())
+  geo.register(new OsmGeoProvider({
+    nominatimUrl: env.VITE_NOMINATIM_URL ?? '/nominatim',
+    osrmUrl: env.VITE_OSRM_URL ?? '/osrm',
+  }))
   // Serialize + cache geocoding so the map's per-day burst doesn't trip the public endpoints' rate limit.
   const geoProvider = createThrottledGeoProvider(geo.get('osm')!)
 

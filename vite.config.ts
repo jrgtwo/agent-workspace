@@ -30,6 +30,21 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/llama/, ''),
       },
+      // Geocoding (Nominatim) + routing (OSRM) proxied same-origin: kills CORS and
+      // lets us attach the policy-required User-Agent the browser strips. The throttle
+      // still enforces Nominatim's absolute 1 req/sec limit — the proxy doesn't lift that.
+      '/nominatim': {
+        target: 'https://nominatim.openstreetmap.org',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/nominatim/, ''),
+        // Generic UA (no personal info — privacy-first); override with NOMINATIM_UA.
+        headers: { 'User-Agent': process.env.NOMINATIM_UA ?? 'agent-practice/1.0 (local AI workspace)' },
+      },
+      '/osrm': {
+        target: 'https://router.project-osrm.org',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/osrm/, ''),
+      },
     },
   },
 })

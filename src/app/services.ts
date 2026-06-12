@@ -20,6 +20,7 @@ import { ResearchRegistry } from '../core/research/researchRegistry'
 import { SearxngProvider } from '../core/research/searxngProvider'
 import { GeoRegistry } from '../core/geo/geoRegistry'
 import { OsmGeoProvider } from '../core/geo/osmGeoProvider'
+import { createThrottledGeoProvider } from '../core/geo/throttledGeoProvider'
 import { SearchResultsStore } from '../modules/search/searchResultsStore'
 import { createSearchFeature } from '../features/search'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
@@ -213,7 +214,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   // Geo: pluggable geocoding/routing. Default OSM (Nominatim + OSRM); self-host later via the seam.
   const geo = new GeoRegistry()
   geo.register(new OsmGeoProvider())
-  const geoProvider = geo.get('osm')!
+  // Serialize + cache geocoding so the map's per-day burst doesn't trip the public endpoints' rate limit.
+  const geoProvider = createThrottledGeoProvider(geo.get('osm')!)
 
   // Inject live state into each feature agent's system prompt every run, so it knows the active
   // document / open board (and which sub-boards exist) instead of guessing.

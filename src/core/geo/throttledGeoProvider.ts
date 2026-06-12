@@ -45,7 +45,9 @@ export function createThrottledGeoProvider(inner: GeoProvider, opts: ThrottleOpt
       let p = cache.get(key)
       if (!p) {
         p = schedule(() => inner.geocode(query))
-        p.catch(() => cache.delete(key)) // don't cache failures — allow a later retry
+        // Cache only a non-empty success. Failures AND empty results stay retryable so a later call
+        // (e.g. the manual "Locate" button) actually re-queries instead of replaying a cached miss.
+        p.then((places) => { if (!places.length) cache.delete(key) }, () => cache.delete(key))
         cache.set(key, p)
       }
       return p

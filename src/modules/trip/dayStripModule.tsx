@@ -56,6 +56,7 @@ function TripHeader({ store }: { store: TripStore }) {
 
 function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; review?: ReviewDeps }) {
   const { focusedDayId, selectedStopId } = useStore(store)
+  const [locStatus, setLocStatus] = useState<Record<string, 'busy' | 'miss'>>({})
   const trip = store.getActiveTrip()
   if (!trip) {
     return (
@@ -78,10 +79,18 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
 
   const locate = async (dayId: string, stop: { id: string; name: string }) => {
     if (!geo) return
+    setLocStatus((m) => ({ ...m, [stop.id]: 'busy' }))
     try {
       const hit = (await geo.geocode(trip.destination ? `${stop.name}, ${trip.destination}` : stop.name))[0]
-      if (hit) store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
-    } catch { /* leave pin-less */ }
+      if (hit) {
+        store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
+        setLocStatus((m) => { const n = { ...m }; delete n[stop.id]; return n }) // row now shows 📍
+      } else {
+        setLocStatus((m) => ({ ...m, [stop.id]: 'miss' })) // found nothing — say so, allow retry
+      }
+    } catch {
+      setLocStatus((m) => ({ ...m, [stop.id]: 'miss' }))
+    }
   }
 
   return (
@@ -109,9 +118,11 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
                 ) : (trip.mapsEnabled || !!geo) ? (
                   <button
                     className="stop-row__locate"
-                    aria-label={`Locate ${s.name}`}
+                    data-status={locStatus[s.id]}
+                    disabled={locStatus[s.id] === 'busy'}
+                    aria-label={locStatus[s.id] === 'miss' ? `Couldn't locate ${s.name} — retry` : `Locate ${s.name}`}
                     onClick={(e) => { e.stopPropagation(); void locate(d.id, s) }}
-                  >Locate</button>
+                  >{locStatus[s.id] === 'busy' ? '…' : locStatus[s.id] === 'miss' ? 'Not found' : 'Locate'}</button>
                 ) : (
                   <span className="stop-row__loc stop-row__loc--off" title="Off the map" aria-hidden="true">○</span>
                 )}

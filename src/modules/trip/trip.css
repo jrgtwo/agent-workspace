@@ -76,6 +76,8 @@
   background: none; border: 1px solid var(--border); border-radius: var(--radius-control);
   color: var(--accent); cursor: pointer; font-size: 11px; padding: 1px 6px;
 }
+.stop-row__locate[data-status='busy'] { opacity: .6; cursor: default; }
+.stop-row__locate[data-status='miss'] { color: var(--text-muted); border-color: var(--text-muted); }
 
 .stop-row__time {
   color: var(--text-muted);

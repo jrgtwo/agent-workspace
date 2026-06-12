@@ -75,6 +75,21 @@ describe('day-list correlation', () => {
     expect(store.getActiveTrip()!.days[0].stops[0].placeName).toBe('Shipwreck Beach, Kōloa, HI')
     expect(geocode).toHaveBeenCalledWith('Shipwreck Beach, Kauai, Hawaii')
   })
+
+  it('shows "Not found" when Locate geocodes nothing (instead of silently no-op)', async () => {
+    let n = 0
+    const store = new TripStore(() => `c4-${++n}`)
+    const t = store.createTrip('Kauai')
+    store.setMapsEnabled(t, true)
+    const day = store.getTrip(t)!.days[0].id
+    store.addStop(t, day, { name: 'Dinner at Poipu Town' })
+    const geocode = vi.fn(async () => []) // activity-style name resolves to nothing
+    const mod = createDayStripModule(store, { geocode })
+    render(<>{mod.render()}</>)
+    fireEvent.click(screen.getByRole('button', { name: /locate Dinner at Poipu Town/i }))
+    expect(await screen.findByRole('button', { name: /couldn't locate Dinner at Poipu Town/i })).toBeInTheDocument()
+    expect(screen.getByText('Not found')).toBeInTheDocument()
+  })
 })
 
 describe('trip header (multi-trip)', () => {

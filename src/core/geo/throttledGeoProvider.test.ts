@@ -36,6 +36,15 @@ describe('createThrottledGeoProvider', () => {
     expect(inner.geocode).toHaveBeenCalledTimes(2)
   })
 
+  it('does NOT cache empty results, so a later "Locate" retry re-queries', async () => {
+    const inner = fakeInner()
+    ;(inner.geocode as ReturnType<typeof vi.fn>).mockResolvedValueOnce([])
+    const p = createThrottledGeoProvider(inner, { minIntervalMs: 0 })
+    expect(await p.geocode('Dinner at Poipu Town')).toEqual([]) // first lookup: nothing found
+    await p.geocode('Dinner at Poipu Town') // retry actually hits the provider again
+    expect(inner.geocode).toHaveBeenCalledTimes(2)
+  })
+
   it('spaces requests by at least minIntervalMs (serialized, throttled)', async () => {
     const inner = fakeInner()
     const sleeps: number[] = []

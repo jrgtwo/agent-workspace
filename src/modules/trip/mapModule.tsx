@@ -6,7 +6,7 @@ import type { WorkspaceModule } from '../../core/types'
 import type { TripStore } from './tripStore'
 import { requestEnableMaps, type BrokerLike } from './enableMaps'
 import { routeLatLngs } from './routeLine'
-import { stopQuery } from './placeQuery'
+import type { StopLocate } from './locate'
 import type { GeoProvider, RouteGeometry } from '../../core/geo/types'
 import './trip.css'
 
@@ -18,7 +18,7 @@ const numberedIcon = (n: number, selected: boolean) =>
     iconAnchor: [13, 13],
   })
 
-function TripMap({ store, broker, provider }: { store: TripStore; broker: BrokerLike; provider: GeoProvider }) {
+function TripMap({ store, broker, provider, locate }: { store: TripStore; broker: BrokerLike; provider: GeoProvider; locate: StopLocate }) {
   useStore(store) // re-render on trip/stop/focus/consent change
   const trip = store.getActiveTrip()
   const focusedDayId = store.getState().focusedDayId
@@ -86,12 +86,12 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
     const missing = day.stops.filter((s) => typeof s.lat !== 'number' || typeof s.lng !== 'number')
     if (!missing.length) return
     let cancelled = false
-    // stopQuery scopes to the trip destination ("Shipwreck Beach" → Kauai, not the mainland), prefers the
-    // agent's clean `place` hint, and strips activity framing ("Dinner at …") that otherwise resolves to nothing.
+    // locate() does the Nominatim query (cleaned + place-hinted + destination-scoped) and, on a miss,
+    // the Overpass fuzzy fallback within the destination bbox — so activity names and spelling variants resolve.
     void Promise.all(
       missing.map(async (s) => {
         try {
-          const hit = (await provider.geocode(stopQuery(s, trip.destination)))[0]
+          const hit = await locate(s, trip.destination)
           if (!cancelled && hit) store.updateStop(trip.id, day.id, s.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name })
         } catch { /* leave the stop pin-less */ }
       }),
@@ -121,13 +121,13 @@ function TripMap({ store, broker, provider }: { store: TripStore; broker: Broker
   )
 }
 
-export function createTripMapModule(store: TripStore, broker: BrokerLike, provider: GeoProvider): WorkspaceModule {
+export function createTripMapModule(store: TripStore, broker: BrokerLike, provider: GeoProvider, locate: StopLocate): WorkspaceModule {
   return {
     id: 'trip-map',
     title: 'Map',
     locality: 'NETWORK',
     layoutHints: { defaultSize: 65, collapsible: false, minSize: 30 },
-    render: () => <TripMap store={store} broker={broker} provider={provider} />,
+    render: () => <TripMap store={store} broker={broker} provider={provider} locate={locate} />,
     tools: [],
   }
 }

@@ -45,6 +45,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/osrm/, ''),
       },
+      // Overpass: raw-OSM POI search used as the geocoding fallback (same CORS/UA story).
+      '/overpass': {
+        target: 'https://overpass-api.de',
+        changeOrigin: true,
+        rewrite: () => '/api/interpreter',
+        headers: { 'User-Agent': process.env.NOMINATIM_UA ?? 'agent-practice/1.0 (local AI workspace)' },
+      },
     },
   },
 })

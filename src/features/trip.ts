@@ -7,6 +7,7 @@ import type { AgentEngine } from '../core/agentEngine'
 import type { PermissionBroker } from '../core/permissionBroker'
 import type { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
 import type { GeoProvider } from '../core/geo/types'
+import type { StopLocate } from '../modules/trip/locate'
 import type { ProposalStore } from '../core/proposalStore'
 import type { ProposalApplier } from '../core/proposalApplier'
 
@@ -16,13 +17,14 @@ export function createTripFeature(deps: {
   broker: PermissionBroker
   accent: AgentAccentStore
   provider: GeoProvider
+  locate: StopLocate
   proposals: ProposalStore
   applier: ProposalApplier
 }): FeatureManifest {
-  const map = createTripMapModule(deps.store, deps.broker, deps.provider)
+  const map = createTripMapModule(deps.store, deps.broker, deps.provider, deps.locate)
   const dayStrip = createDayStripModule(
     deps.store,
-    { geocode: (q) => deps.provider.geocode(q) },
+    deps.locate,
     { proposals: deps.proposals, applier: deps.applier },
   )
   const chat = createAiChatModule(deps.engine, deps.broker, deps.accent)

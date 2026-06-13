@@ -1,4 +1,6 @@
-export interface GeoPlace { name: string; lat: number; lng: number; category?: string }
+export interface BBox { south: number; west: number; north: number; east: number }
+
+export interface GeoPlace { name: string; lat: number; lng: number; category?: string; bbox?: BBox }
 
 /** A minimal GeoJSON LineString for a route's drawn path. */
 export interface RouteGeometry { type: 'LineString'; coordinates: [number, number][] } // [lng, lat]

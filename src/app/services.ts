@@ -21,6 +21,8 @@ import { SearxngProvider } from '../core/research/searxngProvider'
 import { GeoRegistry } from '../core/geo/geoRegistry'
 import { OsmGeoProvider } from '../core/geo/osmGeoProvider'
 import { createThrottledGeoProvider } from '../core/geo/throttledGeoProvider'
+import { OverpassProvider } from '../core/geo/overpassProvider'
+import { createStopLocator } from '../modules/trip/locate'
 import { SearchResultsStore } from '../modules/search/searchResultsStore'
 import { createSearchFeature } from '../features/search'
 import { OrchestratorSessionStore } from '../modules/orchestrator/sessionStore'
@@ -221,6 +223,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   }))
   // Serialize + cache geocoding so the map's per-day burst doesn't trip the public endpoints' rate limit.
   const geoProvider = createThrottledGeoProvider(geo.get('osm')!)
+  // Stop locator: Nominatim primary, then an Overpass fuzzy-name fallback (within the destination bbox)
+  // for POIs the geocoder won't surface ("Leoda's Kitchen & Pie Shop" → OSM's "Leodas Kitchen and Pie Shop").
+  const overpass = new OverpassProvider({ url: env.VITE_OVERPASS_URL ?? '/overpass' })
+  const stopLocator = createStopLocator({ geo: geoProvider, overpass })
 
   // Inject live state into each feature agent's system prompt every run, so it knows the active
   // document / open board (and which sub-boards exist) instead of guessing.
@@ -246,7 +252,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   }
   const settings = createSettingsFeature({ theme, memory, clearAll })
   const board = createBoardFeature({ store: kanban, nav: kanbanNav, engine: boardEngine, broker, accent: agentAccent, proposals, applier })
-  const tripFeature = createTripFeature({ store: trip, engine: tripEngine, broker, accent: agentAccent, provider: geoProvider, proposals, applier })
+  const tripFeature = createTripFeature({ store: trip, engine: tripEngine, broker, accent: agentAccent, provider: geoProvider, locate: stopLocator.locate, proposals, applier })
 
   const searchToolRegistry = new Registry()
   const searchEngine = new AgentEngine(client, searchToolRegistry, broker, 'search-chat')

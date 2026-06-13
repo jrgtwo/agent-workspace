@@ -58,59 +58,30 @@ describe('day-list correlation', () => {
     expect(store.getState().focusedDayId).toBe(day)
   })
 
-  it('Locate geocodes the stop (scoped to destination) and stores coords + placeName', async () => {
+  it('Locate calls the locator with the stop + destination and stores the resolved coords + placeName', async () => {
     let n = 0
     const store = new TripStore(() => `c3-${++n}`)
-    const t = store.createTrip('Kauai')
-    store.setMapsEnabled(t, true)
-    // give the trip a destination via a build proposal so geocode is scoped
     store.applyProposal({ kind: 'build-itinerary', title: 'Kauai', destination: 'Kauai, Hawaii', days: [{ label: 'Day 1', stops: [{ name: 'Shipwreck Beach' }] }] })
-    const active = store.getActiveTrip()!
-    void active.days[0].id // day id available for debugging
-    const geocode = vi.fn(async () => [{ name: 'Shipwreck Beach, Kōloa, HI', lat: 21.87, lng: -159.43 }])
-    const mod = createDayStripModule(store, { geocode })
+    const t = store.getActiveTrip()!.id
+    store.setMapsEnabled(t, true)
+    const locate = vi.fn(async () => ({ name: 'Shipwreck Beach, Kōloa, HI', lat: 21.87, lng: -159.43 }))
+    const mod = createDayStripModule(store, locate)
     render(<>{mod.render()}</>)
     fireEvent.click(screen.getByRole('button', { name: /locate Shipwreck Beach/i }))
     await waitFor(() => expect(store.getActiveTrip()!.days[0].stops[0].lat).toBe(21.87))
     expect(store.getActiveTrip()!.days[0].stops[0].placeName).toBe('Shipwreck Beach, Kōloa, HI')
-    expect(geocode).toHaveBeenCalledWith('Shipwreck Beach, Kauai, Hawaii')
+    expect(locate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Shipwreck Beach' }), 'Kauai, Hawaii')
   })
 
-  it('Locate strips activity framing from the name before geocoding', async () => {
-    let n = 0
-    const store = new TripStore(() => `c5-${++n}`)
-    store.applyProposal({ kind: 'build-itinerary', title: 'Kauai', destination: 'Kauai, Hawaii', days: [{ label: 'Day 1', stops: [{ name: 'Dinner at Tidepools Restaurant' }] }] })
-    const t = store.getActiveTrip()!.id
-    store.setMapsEnabled(t, true)
-    const geocode = vi.fn(async () => [{ name: 'Tidepools, Koloa, HI', lat: 21.87, lng: -159.45 }])
-    const mod = createDayStripModule(store, { geocode })
-    render(<>{mod.render()}</>)
-    fireEvent.click(screen.getByRole('button', { name: /locate Dinner at Tidepools Restaurant/i }))
-    await waitFor(() => expect(geocode).toHaveBeenCalledWith('Tidepools Restaurant, Kauai, Hawaii'))
-  })
-
-  it('Locate uses the agent `place` hint over the display name', async () => {
-    let n = 0
-    const store = new TripStore(() => `c6-${++n}`)
-    store.applyProposal({ kind: 'build-itinerary', title: 'Kauai', destination: 'Kauai, Hawaii', days: [{ label: 'Day 1', stops: [{ name: 'Farewell dinner in Hanalei', place: 'Hanalei' }] }] })
-    const t = store.getActiveTrip()!.id
-    store.setMapsEnabled(t, true)
-    const geocode = vi.fn(async () => [{ name: 'Hanalei, HI', lat: 22.2, lng: -159.5 }])
-    const mod = createDayStripModule(store, { geocode })
-    render(<>{mod.render()}</>)
-    fireEvent.click(screen.getByRole('button', { name: /locate Farewell dinner in Hanalei/i }))
-    await waitFor(() => expect(geocode).toHaveBeenCalledWith('Hanalei, Kauai, Hawaii'))
-  })
-
-  it('shows "Not found" when Locate geocodes nothing (instead of silently no-op)', async () => {
+  it('shows "Not found" when the locator resolves nothing (instead of silently no-op)', async () => {
     let n = 0
     const store = new TripStore(() => `c4-${++n}`)
     const t = store.createTrip('Kauai')
     store.setMapsEnabled(t, true)
     const day = store.getTrip(t)!.days[0].id
     store.addStop(t, day, { name: 'Dinner at Poipu Town' })
-    const geocode = vi.fn(async () => []) // activity-style name resolves to nothing
-    const mod = createDayStripModule(store, { geocode })
+    const locate = vi.fn(async () => null) // nothing found, even via fallback
+    const mod = createDayStripModule(store, locate)
     render(<>{mod.render()}</>)
     fireEvent.click(screen.getByRole('button', { name: /locate Dinner at Poipu Town/i }))
     expect(await screen.findByRole('button', { name: /couldn't locate Dinner at Poipu Town/i })).toBeInTheDocument()

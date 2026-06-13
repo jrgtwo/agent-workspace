@@ -1,6 +1,6 @@
 import type { GeoPlace, GeoProvider, RouteGeometry, RouteResult } from './types'
 
-interface NominatimItem { display_name?: string; lat?: string; lon?: string; class?: string }
+interface NominatimItem { display_name?: string; lat?: string; lon?: string; class?: string; boundingbox?: string[] }
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org'
 const OSRM = 'https://router.project-osrm.org'
@@ -35,12 +35,14 @@ export class OsmGeoProvider implements GeoProvider {
     const items = (await res.json()) as NominatimItem[]
     return (Array.isArray(items) ? items : [])
       .filter((i) => i.lat && i.lon)
-      .map((i) => ({
-        name: i.display_name ?? query,
-        lat: Number(i.lat),
-        lng: Number(i.lon),
-        category: i.class,
-      }))
+      .map((i) => {
+        // Nominatim boundingbox is [south, north, west, east] as strings.
+        const bb = i.boundingbox
+        const bbox = bb && bb.length === 4
+          ? { south: Number(bb[0]), north: Number(bb[1]), west: Number(bb[2]), east: Number(bb[3]) }
+          : undefined
+        return { name: i.display_name ?? query, lat: Number(i.lat), lng: Number(i.lon), category: i.class, bbox }
+      })
   }
 
   async route(coords: { lat: number; lng: number }[]): Promise<RouteResult> {

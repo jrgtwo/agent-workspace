@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cleanActivityPrefix, stopQuery } from './placeQuery'
+import { cleanActivityPrefix, stopQuery, barePlace, overpassNameRegex, pickBestMatch } from './placeQuery'
 
 describe('cleanActivityPrefix', () => {
   it('strips a leading meal-activity phrase so the place name resolves', () => {
@@ -47,5 +47,45 @@ describe('stopQuery', () => {
   it('does not double-append a destination the base already contains', () => {
     expect(stopQuery({ name: 'Farewell dinner in Hanalei', place: 'Hanalei, Kauai, Hawaii' }, 'Kauai, Hawaii'))
       .toBe('Hanalei, Kauai, Hawaii')
+  })
+})
+
+describe('barePlace', () => {
+  it('is the agent place when present, else the cleaned name', () => {
+    expect(barePlace({ name: 'Dinner at Tidepools Restaurant', place: 'Tidepools Restaurant' })).toBe('Tidepools Restaurant')
+    expect(barePlace({ name: 'Visit the Louvre' })).toBe('Louvre')
+  })
+})
+
+describe('overpassNameRegex (fuzzy POI match for Overpass)', () => {
+  it('uses the first two significant words, joined loosely', () => {
+    expect(overpassNameRegex("Leoda's Kitchen & Pie Shop")).toBe('leoda.?s.*kitchen')
+    expect(overpassNameRegex('Morimoto Maui')).toBe('morimoto.*maui')
+  })
+
+  it('makes apostrophes/ʻokina optional so OSM spelling variants still match', () => {
+    expect(overpassNameRegex("Haliʻimaile General Store")).toBe('hali.?imaile.*general')
+  })
+
+  it('drops leading articles and connectors as insignificant', () => {
+    expect(overpassNameRegex('The Restaurant at Hotel Wailea')).toBe('restaurant.*hotel')
+  })
+
+  it('handles a single significant word', () => {
+    expect(overpassNameRegex("Leoda's")).toBe('leoda.?s')
+  })
+})
+
+describe('pickBestMatch', () => {
+  const hits = [
+    { name: 'Some Other Place', lat: 1, lng: 1 },
+    { name: 'Leodas Kitchen and Pie Shop', lat: 2, lng: 2 },
+  ]
+  it('returns the hit sharing the most significant tokens with the target name', () => {
+    expect(pickBestMatch(hits, "Leoda's Kitchen & Pie Shop")?.lat).toBe(2)
+  })
+
+  it('returns undefined when nothing meaningfully overlaps', () => {
+    expect(pickBestMatch([{ name: 'Random Cafe', lat: 9, lng: 9 }], "Leoda's Kitchen")).toBeUndefined()
   })
 })

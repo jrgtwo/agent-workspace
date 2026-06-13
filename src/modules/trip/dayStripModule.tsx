@@ -3,7 +3,7 @@ import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { TripStore } from './tripStore'
 import { PendingReview } from '../proposals/PendingReview'
-import { stopQuery } from './placeQuery'
+import type { StopLocate } from './locate'
 import type { ProposalStore } from '../../core/proposalStore'
 import type { ProposalApplier } from '../../core/proposalApplier'
 import './trip.css'
@@ -24,7 +24,6 @@ function AddStop({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-interface Geocoder { geocode: (q: string) => Promise<{ name: string; lat: number; lng: number; category?: string }[]> }
 interface ReviewDeps { proposals: ProposalStore; applier: ProposalApplier }
 
 function TripHeader({ store }: { store: TripStore }) {
@@ -55,7 +54,7 @@ function TripHeader({ store }: { store: TripStore }) {
   )
 }
 
-function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; review?: ReviewDeps }) {
+function DayStrip({ store, locate, review }: { store: TripStore; locate?: StopLocate; review?: ReviewDeps }) {
   const { focusedDayId, selectedStopId } = useStore(store)
   const [locStatus, setLocStatus] = useState<Record<string, 'busy' | 'miss'>>({})
   const trip = store.getActiveTrip()
@@ -70,19 +69,19 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
 
   const addStop = async (dayId: string, name: string) => {
     const id = store.addStop(trip.id, dayId, { name })
-    if (trip.mapsEnabled && geo) {
+    if (trip.mapsEnabled && locate) {
       try {
-        const hit = (await geo.geocode(stopQuery({ name }, trip.destination)))[0]
+        const hit = await locate({ name }, trip.destination)
         if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
       } catch { /* leave the stop pin-less; surfaced elsewhere */ }
     }
   }
 
-  const locate = async (dayId: string, stop: { id: string; name: string; place?: string }) => {
-    if (!geo) return
+  const handleLocate = async (dayId: string, stop: { id: string; name: string; place?: string }) => {
+    if (!locate) return
     setLocStatus((m) => ({ ...m, [stop.id]: 'busy' }))
     try {
-      const hit = (await geo.geocode(stopQuery(stop, trip.destination)))[0]
+      const hit = await locate(stop, trip.destination)
       if (hit) {
         store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
         setLocStatus((m) => { const n = { ...m }; delete n[stop.id]; return n }) // row now shows 📍
@@ -116,13 +115,13 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
                 <span className="stop-row__name">{s.name}</span>
                 {typeof s.lat === 'number' && typeof s.lng === 'number' ? (
                   <span className="stop-row__loc" aria-label={`On the map: ${s.placeName ?? s.name}`} title={s.placeName ?? 'On the map'}>📍</span>
-                ) : (trip.mapsEnabled || !!geo) ? (
+                ) : (trip.mapsEnabled || !!locate) ? (
                   <button
                     className="stop-row__locate"
                     data-status={locStatus[s.id]}
                     disabled={locStatus[s.id] === 'busy'}
                     aria-label={locStatus[s.id] === 'miss' ? `Couldn't locate ${s.name} — retry` : `Locate ${s.name}`}
-                    onClick={(e) => { e.stopPropagation(); void locate(d.id, s) }}
+                    onClick={(e) => { e.stopPropagation(); void handleLocate(d.id, s) }}
                   >{locStatus[s.id] === 'busy' ? '…' : locStatus[s.id] === 'miss' ? 'Not found' : 'Locate'}</button>
                 ) : (
                   <span className="stop-row__loc stop-row__loc--off" title="Off the map" aria-hidden="true">○</span>
@@ -143,13 +142,13 @@ function DayStrip({ store, geo, review }: { store: TripStore; geo?: Geocoder; re
   )
 }
 
-export function createDayStripModule(store: TripStore, geo?: Geocoder, review?: ReviewDeps): WorkspaceModule {
+export function createDayStripModule(store: TripStore, locate?: StopLocate, review?: ReviewDeps): WorkspaceModule {
   return {
     id: 'trip-day-strip',
     title: 'Itinerary',
     locality: 'LOCAL',
     layoutHints: { defaultSize: 35, collapsible: false, minSize: 20 },
-    render: () => <DayStrip store={store} geo={geo} review={review} />,
+    render: () => <DayStrip store={store} locate={locate} review={review} />,
     tools: [],
   }
 }

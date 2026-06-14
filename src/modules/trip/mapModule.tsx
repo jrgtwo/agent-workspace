@@ -10,9 +10,9 @@ import type { StopLocate } from './locate'
 import type { GeoProvider, RouteGeometry } from '../../core/geo/types'
 import './trip.css'
 
-const numberedIcon = (n: number, selected: boolean) =>
+const numberedIcon = (n: number, selected: boolean, approximate = false) =>
   L.divIcon({
-    className: `trip-pin${selected ? ' trip-pin--selected' : ''}`,
+    className: `trip-pin${selected ? ' trip-pin--selected' : ''}${approximate ? ' trip-pin--approx' : ''}`,
     html: `<span>${n}</span>`,
     iconSize: [26, 26],
     iconAnchor: [13, 13],
@@ -42,6 +42,10 @@ function TripMap({ store, broker, provider, locate }: { store: TripStore; broker
       maxZoom: 19,
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
+    // Pick-on-map: while a stop is awaiting placement, a map click sets its location.
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      if (store.getState().placingStopId) store.pickLocation(e.latlng.lat, e.latlng.lng)
+    })
     mapRef.current = map
     return () => { map.remove(); mapRef.current = null; layerRef.current = null }
   }, [enabled])
@@ -54,19 +58,21 @@ function TripMap({ store, broker, provider, locate }: { store: TripStore; broker
     if (!located.length) return
     for (const s of located) {
       const selected = s.id === selectedStopId
-      const m = L.marker([s.lat!, s.lng!], { icon: numberedIcon(s.n, selected) })
-        .bindTooltip(`${s.n}. ${s.name}`)
+      const m = L.marker([s.lat!, s.lng!], { icon: numberedIcon(s.n, selected, s.approximate) })
+        .bindTooltip(s.approximate ? `${s.n}. ${s.name} (approximate)` : `${s.n}. ${s.name}`)
         .addTo(layer)
       m.on('click', () => store.selectStop(s.id))
       if (selected) { m.openTooltip(); mapRef.current!.panTo([s.lat!, s.lng!]) }
     }
+    // The route connects only PRECISE stops — approximate (centroid) pins aren't real waypoints.
+    const routed = located.filter((s) => !s.approximate)
     const draw = (geom: RouteGeometry | null) => {
       if (cancelled || !layerRef.current) return
-      const line = routeLatLngs(located.map((s) => ({ lat: s.lat!, lng: s.lng! })), geom)
+      const line = routeLatLngs(routed.map((s) => ({ lat: s.lat!, lng: s.lng! })), geom)
       L.polyline(line, { color: '#2b6cb0', weight: 3, dashArray: geom ? undefined : '6 5' }).addTo(layerRef.current)
     }
-    if (located.length >= 2 && enabled) {
-      provider.route(located.map((s) => ({ lat: s.lat!, lng: s.lng! })))
+    if (routed.length >= 2 && enabled) {
+      provider.route(routed.map((s) => ({ lat: s.lat!, lng: s.lng! })))
         .then((r) => { geomRef.current = r.geometry; draw(r.geometry) })
         .catch(() => draw(null)) // routing failed → straight dashed lines
     } else {
@@ -76,7 +82,7 @@ function TripMap({ store, broker, provider, locate }: { store: TripStore; broker
     return () => { cancelled = true }
     // `enabled` + `focusedDayId` are deps so markers/route repaint when the map is (re)created
     // after a maps off→on toggle — the located string alone is unchanged across a toggle.
-  }, [enabled, focusedDayId, selectedStopId, located.map((s) => `${s.id}:${s.lat},${s.lng}`).join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, focusedDayId, selectedStopId, located.map((s) => `${s.id}:${s.lat},${s.lng},${s.approximate}`).join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Agent-built itineraries arrive as stop names with no coordinates. When maps are on, geocode the
   // focused day's coordinate-less stops so they get pins and the map centers on the real place (e.g.
@@ -102,11 +108,19 @@ function TripMap({ store, broker, provider, locate }: { store: TripStore; broker
 
   if (!trip) return <div className="trip-map">No trip selected.</div>
 
+  const placing = !!store.getState().placingStopId
+
   return (
-    <div className="trip-map">
+    <div className="trip-map" data-placing={placing}>
       {enabled ? (
         <>
           <div ref={elRef} className="trip-map__leaflet" />
+          {placing && (
+            <div className="trip-map__placing-hint" role="status">
+              Click the map to place this stop
+              <button onClick={() => store.stopPlacing()}>Cancel</button>
+            </div>
+          )}
           <button className="trip-map__toggle" onClick={() => store.setMapsEnabled(trip.id, false)}>
             ◉ Maps online
           </button>

@@ -55,7 +55,7 @@ function TripHeader({ store }: { store: TripStore }) {
 }
 
 function DayStrip({ store, locate, review }: { store: TripStore; locate?: StopLocate; review?: ReviewDeps }) {
-  const { focusedDayId, selectedStopId } = useStore(store)
+  const { focusedDayId, selectedStopId, placingStopId } = useStore(store)
   const [locStatus, setLocStatus] = useState<Record<string, 'busy' | 'miss'>>({})
   const trip = store.getActiveTrip()
   if (!trip) {
@@ -72,7 +72,7 @@ function DayStrip({ store, locate, review }: { store: TripStore; locate?: StopLo
     if (trip.mapsEnabled && locate) {
       try {
         const hit = await locate({ name }, trip.destination)
-        if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
+        if (hit) store.updateStop(trip.id, dayId, id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category, approximate: hit.approximate })
       } catch { /* leave the stop pin-less; surfaced elsewhere */ }
     }
   }
@@ -83,8 +83,8 @@ function DayStrip({ store, locate, review }: { store: TripStore; locate?: StopLo
     try {
       const hit = await locate(stop, trip.destination)
       if (hit) {
-        store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category })
-        setLocStatus((m) => { const n = { ...m }; delete n[stop.id]; return n }) // row now shows 📍
+        store.updateStop(trip.id, dayId, stop.id, { lat: hit.lat, lng: hit.lng, placeName: hit.name, category: hit.category, approximate: hit.approximate })
+        setLocStatus((m) => { const n = { ...m }; delete n[stop.id]; return n }) // row now shows a pin
       } else {
         setLocStatus((m) => ({ ...m, [stop.id]: 'miss' })) // found nothing — say so, allow retry
       }
@@ -114,7 +114,15 @@ function DayStrip({ store, locate, review }: { store: TripStore; locate?: StopLo
                 {s.time && <span className="stop-row__time">{s.time}</span>}
                 <span className="stop-row__name">{s.name}</span>
                 {typeof s.lat === 'number' && typeof s.lng === 'number' ? (
-                  <span className="stop-row__loc" aria-label={`On the map: ${s.placeName ?? s.name}`} title={s.placeName ?? 'On the map'}>📍</span>
+                  s.approximate ? (
+                    <span
+                      className="stop-row__loc stop-row__loc--approx"
+                      aria-label={`Approximate location${trip.destination ? ` — near ${trip.destination}` : ''}: ${s.name}`}
+                      title={`Approximate — near ${trip.destination ?? 'destination'}. Use 📌 to place it exactly.`}
+                    >≈</span>
+                  ) : (
+                    <span className="stop-row__loc" aria-label={`On the map: ${s.placeName ?? s.name}`} title={s.placeName ?? 'On the map'}>📍</span>
+                  )
                 ) : (trip.mapsEnabled || !!locate) ? (
                   <button
                     className="stop-row__locate"
@@ -125,6 +133,15 @@ function DayStrip({ store, locate, review }: { store: TripStore; locate?: StopLo
                   >{locStatus[s.id] === 'busy' ? '…' : locStatus[s.id] === 'miss' ? 'Not found' : 'Locate'}</button>
                 ) : (
                   <span className="stop-row__loc stop-row__loc--off" title="Off the map" aria-hidden="true">○</span>
+                )}
+                {(trip.mapsEnabled || !!locate) && (
+                  <button
+                    className="stop-row__pin"
+                    data-active={placingStopId === s.id}
+                    aria-label={placingStopId === s.id ? `Placing ${s.name} — click the map, or click to cancel` : `Set ${s.name} on the map`}
+                    title={placingStopId === s.id ? 'Click the map to place this stop (or click to cancel)' : 'Set on map'}
+                    onClick={(e) => { e.stopPropagation(); placingStopId === s.id ? store.stopPlacing() : store.startPlacing(s.id) }}
+                  >📌</button>
                 )}
                 <button
                   className="stop-row__rm"

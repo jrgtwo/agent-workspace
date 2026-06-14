@@ -41,19 +41,33 @@ describe('createStopLocator', () => {
     expect(d.overpass.searchByName).not.toHaveBeenCalled()
   })
 
-  it('returns null when Overpass also finds nothing usable', async () => {
+  it('falls back to the destination centroid (flagged approximate) when nothing real is found', async () => {
     const geocode = async (q: string): Promise<GeoPlace[]> =>
       q.startsWith('Maui') ? [{ name: 'Maui', lat: 20.8, lng: -156.3, bbox: MAUI_BBOX }] : []
     const d = deps(geocode, async () => [{ name: 'Totally Unrelated', lat: 1, lng: 1 }])
     const { locate } = createStopLocator(d)
-    expect(await locate({ name: 'Nick\'s Fishmarket' }, 'Maui, Hawaii')).toBeNull()
+    const hit = await locate({ name: 'Nick\'s Fishmarket' }, 'Maui, Hawaii')
+    expect(hit).toMatchObject({ lat: 20.8, lng: -156.3, approximate: true })
   })
 
-  it('returns null (does not throw) if Overpass errors', async () => {
+  it('still centroid-falls-back (does not throw) if Overpass errors', async () => {
     const geocode = async (q: string): Promise<GeoPlace[]> =>
       q.startsWith('Maui') ? [{ name: 'Maui', lat: 20.8, lng: -156.3, bbox: MAUI_BBOX }] : []
     const d = deps(geocode, async () => { throw new Error('overpass down') })
     const { locate } = createStopLocator(d)
-    expect(await locate({ name: 'Leoda\'s' }, 'Maui, Hawaii')).toBeNull()
+    expect(await locate({ name: 'Leoda\'s' }, 'Maui, Hawaii')).toMatchObject({ approximate: true })
+  })
+
+  it('returns null when the destination itself cannot be geocoded (no centroid)', async () => {
+    const d = deps(async () => []) // nothing geocodes, not even the destination
+    const { locate } = createStopLocator(d)
+    expect(await locate({ name: 'Nowhere' }, 'Atlantis')).toBeNull()
+  })
+
+  it('a real match is NOT flagged approximate', async () => {
+    const d = deps(async () => [{ name: 'Sam Sato\'s', lat: 20.9, lng: -156.5 }])
+    const { locate } = createStopLocator(d)
+    const hit = await locate({ name: 'Sam Sato\'s' }, 'Maui, Hawaii')
+    expect(hit?.approximate).toBeUndefined()
   })
 })

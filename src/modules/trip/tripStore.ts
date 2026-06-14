@@ -7,7 +7,7 @@ import type { Day, ItineraryDayInput, StopInput, Trip, TripProposalPayload, Trip
  * (getState/subscribe/hydrate), so this store knows nothing about storage. Mirrors KanbanStore.
  */
 export class TripStore extends Emitter<TripState> {
-  private state: TripState = { trips: [], activeId: null, focusedDayId: null, selectedStopId: null }
+  private state: TripState = { trips: [], activeId: null, focusedDayId: null, selectedStopId: null, placingStopId: null }
   private genId: () => string
 
   constructor(genId: () => string) {
@@ -23,6 +23,7 @@ export class TripStore extends Emitter<TripState> {
       activeId: state.activeId ?? null,
       focusedDayId: state.focusedDayId ?? null,
       selectedStopId: state.selectedStopId ?? null,
+      placingStopId: null, // transient UI mode — never restored from storage
     }
     this.notify()
   }
@@ -41,7 +42,7 @@ export class TripStore extends Emitter<TripState> {
     const id = this.genId()
     const day: Day = { id: this.genId(), label: 'Day 1', stops: [] }
     const trip: Trip = { id, title: title?.trim() || 'Untitled Trip', mapsEnabled: false, days: [day] }
-    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: day.id, selectedStopId: null }
+    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: day.id, selectedStopId: null, placingStopId: null }
     this.notify()
     return id
   }
@@ -59,6 +60,29 @@ export class TripStore extends Emitter<TripState> {
     this.notify()
   }
 
+  // ---- pick-on-map (manual placement) ----
+  startPlacing(stopId: string): void {
+    this.state = { ...this.state, placingStopId: stopId }
+    this.notify()
+  }
+
+  stopPlacing(): void {
+    if (this.state.placingStopId === null) return
+    this.state = { ...this.state, placingStopId: null }
+    this.notify()
+  }
+
+  /** Set the currently-placing stop's coords from a map click (a precise, user-chosen location). */
+  pickLocation(lat: number, lng: number): void {
+    const stopId = this.state.placingStopId
+    const trip = this.getActiveTrip()
+    if (!stopId || !trip) return
+    const day = trip.days.find((d) => d.stops.some((s) => s.id === stopId))
+    if (!day) { this.stopPlacing(); return }
+    this.updateStop(trip.id, day.id, stopId, { lat, lng, placeName: 'Picked location', approximate: false })
+    this.stopPlacing()
+  }
+
   renameTrip(id: string, title: string): void {
     this.state = {
       ...this.state,
@@ -72,7 +96,7 @@ export class TripStore extends Emitter<TripState> {
     const activeId = this.state.activeId === id ? (trips[0]?.id ?? null) : this.state.activeId
     const focusedDayId =
       this.state.activeId === id ? (trips[0]?.days[0]?.id ?? null) : this.state.focusedDayId
-    this.state = { trips, activeId, focusedDayId, selectedStopId: null }
+    this.state = { trips, activeId, focusedDayId, selectedStopId: null, placingStopId: null }
     this.notify()
   }
 
@@ -97,7 +121,7 @@ export class TripStore extends Emitter<TripState> {
       mapsEnabled: false,
       days,
     }
-    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: days[0]?.id ?? null, selectedStopId: null }
+    this.state = { trips: [...this.state.trips, trip], activeId: id, focusedDayId: days[0]?.id ?? null, selectedStopId: null, placingStopId: null }
     this.notify()
     return id
   }

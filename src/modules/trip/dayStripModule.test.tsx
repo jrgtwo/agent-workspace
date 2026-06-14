@@ -45,6 +45,34 @@ describe('day-list correlation', () => {
     expect(screen.getByRole('button', { name: /locate Dinner downtown/i })).toBeInTheDocument()
   })
 
+  it('renders an approximate stop with a ≈ indicator (not a precise 📍)', () => {
+    let n = 0
+    const store = new TripStore(() => `ca-${++n}`)
+    const t = store.createTrip('Maui')
+    store.setMapsEnabled(t, true)
+    const day = store.getTrip(t)!.days[0].id
+    const s1 = store.addStop(t, day, { name: 'Nick\'s Fishmarket' })
+    store.updateStop(t, day, s1, { lat: 20.8, lng: -156.3, approximate: true })
+    const mod = createDayStripModule(store)
+    render(<>{mod.render()}</>)
+    expect(screen.getByLabelText(/approximate/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^On the map:/)).not.toBeInTheDocument()
+  })
+
+  it('the Set-on-map button starts placing mode for that stop', () => {
+    let n = 0
+    const store = new TripStore(() => `cp-${++n}`)
+    const t = store.createTrip('Maui')
+    store.setMapsEnabled(t, true)
+    const day = store.getTrip(t)!.days[0].id
+    const s1 = store.addStop(t, day, { name: 'Beach day' })
+    store.updateStop(t, day, s1, { lat: 20.8, lng: -156.3, approximate: true })
+    const mod = createDayStripModule(store)
+    render(<>{mod.render()}</>)
+    fireEvent.click(screen.getByRole('button', { name: /set Beach day on the map/i }))
+    expect(store.getState().placingStopId).toBe(s1)
+  })
+
   it('clicking a stop row selects it and focuses its day', () => {
     let n = 0
     const store = new TripStore(() => `c2-${++n}`)

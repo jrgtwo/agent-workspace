@@ -3,8 +3,11 @@ import { stopQuery, barePlace, pickBestMatch } from './placeQuery'
 
 interface StopLike { name: string; place?: string }
 
+/** A resolved location — `approximate` means it's a destination-centroid guess, not a real match. */
+export type LocatedPlace = GeoPlace & { approximate?: boolean }
+
 /** Resolve a stop to coordinates (or null), scoped to the trip destination. */
-export type StopLocate = (stop: StopLike, destination?: string) => Promise<GeoPlace | null>
+export type StopLocate = (stop: StopLike, destination?: string) => Promise<LocatedPlace | null>
 
 /**
  * Resolve a stop to coordinates with a two-tier strategy:
@@ -22,15 +25,24 @@ export function createStopLocator(deps: {
   const locate: StopLocate = async (stop, destination) => {
     const primary = (await geo.geocode(stopQuery(stop, destination)))[0]
     if (primary) return primary
-    if (!destination) return null // no area to bound an Overpass search
+    if (!destination) return null // no area to bound a fallback search or centre on
 
     try {
-      const bbox = (await geo.geocode(destination))[0]?.bbox
-      if (!bbox) return null
-      const candidates = await overpass.searchByName(barePlace(stop), bbox)
-      return pickBestMatch(candidates, barePlace(stop)) ?? null
+      const area = (await geo.geocode(destination))[0]
+      if (!area) return null // can't even place the destination — stay pin-less
+
+      // Tier 2: Overpass fuzzy POI search within the destination bbox.
+      if (area.bbox) {
+        try {
+          const best = pickBestMatch(await overpass.searchByName(barePlace(stop), area.bbox), barePlace(stop))
+          if (best) return best
+        } catch { /* Overpass failed — fall through to the centroid */ }
+      }
+
+      // Tier 3: nothing real found — pin near the destination centre, flagged approximate.
+      return { name: `Near ${destination}`, lat: area.lat, lng: area.lng, approximate: true }
     } catch {
-      return null // Overpass/area lookup failed — stay pin-less rather than crash the caller
+      return null
     }
   }
 

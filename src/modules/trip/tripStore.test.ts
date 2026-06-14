@@ -43,6 +43,7 @@ describe('TripStore — trips', () => {
       activeId: 'x',
       focusedDayId: null,
       selectedStopId: null,
+      placingStopId: null,
     })
     expect(s.getTrip('x')!.title).toBe('Hydrated')
   })

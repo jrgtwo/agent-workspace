@@ -71,6 +71,7 @@
 
 .stop-row__loc { opacity: .9; }
 .stop-row__loc--off { opacity: .35; }
+.stop-row__loc--approx { opacity: .6; color: var(--text-muted); font-size: 14px; }
 
 .stop-row__locate {
   background: none; border: 1px solid var(--border); border-radius: var(--radius-control);
@@ -78,6 +79,12 @@
 }
 .stop-row__locate[data-status='busy'] { opacity: .6; cursor: default; }
 .stop-row__locate[data-status='miss'] { color: var(--text-muted); border-color: var(--text-muted); }
+
+.stop-row__pin {
+  background: none; border: none; cursor: pointer; font-size: 12px; opacity: .45; padding: 0 2px;
+}
+.stop-row__pin:hover { opacity: .85; }
+.stop-row__pin[data-active='true'] { opacity: 1; filter: drop-shadow(0 0 3px var(--accent)); }
 
 .stop-row__time {
   color: var(--text-muted);
@@ -139,3 +146,15 @@
   border-radius: 50%; background: var(--accent); color: var(--bg); font: 600 12px/1 sans-serif;
   border: 2px solid var(--bg); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 .trip-pin--selected span { background: var(--text); color: var(--bg); transform: scale(1.25); }
+/* approximate (centroid-guess) pin: hollow + dashed so it reads as "not a real match" */
+.trip-pin--approx span { background: transparent; color: var(--text-muted);
+  border: 2px dashed var(--text-muted); box-shadow: none; opacity: .85; }
+
+/* pick-on-map mode: crosshair cursor + a hint banner */
+.trip-map[data-placing='true'] .trip-map__leaflet { cursor: crosshair; }
+.trip-map__placing-hint { position: absolute; top: var(--space-2); left: 50%; transform: translateX(-50%);
+  z-index: 500; display: flex; align-items: center; gap: var(--space-2);
+  background: var(--bg); border: 1px solid var(--accent); border-radius: var(--radius-control);
+  color: var(--text); padding: 4px 10px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.trip-map__placing-hint button { background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-control); color: var(--text-muted); cursor: pointer; padding: 1px 6px; }

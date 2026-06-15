@@ -121,7 +121,12 @@ function TripMap({ store, broker, provider, locate }: { store: TripStore; broker
               <button onClick={() => store.stopPlacing()}>Cancel</button>
             </div>
           )}
-          <button className="trip-map__toggle" onClick={() => store.setMapsEnabled(trip.id, false)}>
+          <button
+            className="trip-map__toggle"
+            aria-label="Maps online — click to turn off"
+            title="Maps online — click to turn off"
+            onClick={() => store.setMapsEnabled(trip.id, false)}
+          >
             ◉ Maps online
           </button>
         </>

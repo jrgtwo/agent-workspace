@@ -19,7 +19,7 @@ function AddStop({ onAdd }: { onAdd: (name: string) => void }) {
         if (name.trim()) { onAdd(name); setName('') }
       }}
     >
-      <input placeholder="Add a stop…" value={name} onChange={(e) => setName(e.target.value)} />
+      <input aria-label="Add a stop" placeholder="Add a stop…" value={name} onChange={(e) => setName(e.target.value)} />
     </form>
   )
 }

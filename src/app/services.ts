@@ -36,6 +36,11 @@ import { TripStore } from '../modules/trip/tripStore'
 import { createTripFeature } from '../features/trip'
 import { createTripTools } from '../modules/trip/tripTools'
 import { describeTripContext } from '../modules/trip/context'
+import { EntityStore } from '../modules/graph/entityStore'
+import { createGraphFeature } from '../features/graph'
+import { createGraphTools } from '../modules/graph/graphTools'
+import { describeGraphContext } from '../modules/graph/context'
+import type { GraphProposalPayload } from '../modules/graph/types'
 import { describeKanbanContext } from '../modules/kanban/context'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { describeNotesContext } from '../modules/docEditor/context'
@@ -113,6 +118,18 @@ const TRIP_PROMPT =
   'them decide. If the user rejects a proposal or denies a web search, stop and explain — do not retry. ' +
   'When you learn a durable preference about the user, call remember.'
 
+const GRAPH_PROMPT =
+  'You are a local, privacy-first assistant embedded in a "Graph" workspace of typed entities ' +
+  '(records) that the user views as a list or a status board. Your tools are: create_entities, ' +
+  'link_entities, update_entity, remember — you have no others. To add records, gather them ALL and ' +
+  'call create_entities ONCE with a list (never one call per entity); each entity has a type, a title, ' +
+  'an optional status ("To Do"/"Doing"/"Done"), and an optional body. To connect records, call ' +
+  'link_entities with { from, to } pairs naming entities by their EXACT title. To change one, call ' +
+  'update_entity by exact title. Everything you create is PROPOSED as a pending change the user accepts ' +
+  'or rejects in the UI (no permission popup, nothing changes until they accept) — just call the tool ' +
+  'and let them decide. If the user rejects a proposal, stop and explain — do not retry. When you learn ' +
+  'a durable preference about the user, call remember.'
+
 const SEARCH_PROMPT =
   'You are a web research assistant. Use web_search(query, count?) to look things up on the web — the ' +
   'local model and the user\'s documents do not have live/current information. Every search leaves the ' +
@@ -141,6 +158,7 @@ export interface AppServices {
   kanban: KanbanStore
   kanbanNav: KanbanNavStore
   trip: TripStore
+  graph: EntityStore
   preview: PreviewStore
   searchResults: SearchResultsStore
   research: ResearchRegistry
@@ -199,6 +217,20 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const trip = new TripStore(uid)
   await persistState(trip, storage.scope('trip'), 'state')
   if (!trip.getState().trips.length) trip.createTrip('My Trip')
+
+  // Graph: the unified entity-graph proving ground. Own scope, isolated from the other features.
+  const graph = new EntityStore(uid)
+  await persistState(graph, storage.scope('graph'), 'state')
+  applier.register('graph', (c) => graph.applyProposal(c.payload as GraphProposalPayload))
+  if (!graph.getState().entities.length) {
+    // Seed a tiny cross-linked demo set so the List⇄Board "flip the view" magic is visible on first open.
+    const brief = graph.create({ type: 'task', title: 'Draft project brief', status: 'To Do' })
+    const review = graph.create({ type: 'task', title: 'Review brief', status: 'Doing', body: 'Check scope and risks.' })
+    graph.create({ type: 'task', title: 'Ship v1', status: 'Done' })
+    const ideas = graph.create({ type: 'note', title: 'Ideas', body: 'Loose thoughts to fold into the brief.' })
+    graph.link(review, brief)   // Review → Draft (backlink on Draft)
+    graph.link(brief, ideas)    // Draft → Ideas
+  }
 
   applier.register('kanban-board', (c) => kanban.applyProposal(c.payload as import('../modules/kanban/types').KanbanProposalPayload))
   applier.register('kanban-project', (c) => {
@@ -272,6 +304,14 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   tripRegistry.register(createTripTools({ store: trip, proposals, geocode: (q) => geoProvider.geocode(q) }))
   tripRegistry.register(memoryModule.tools)
   tripEngine.setContextProvider(() => describeTripContext(trip))
+
+  const graphRegistry = new Registry()
+  const graphEngine = new AgentEngine(client, graphRegistry, broker, 'graph-chat')
+  const graphFeature = createGraphFeature({ store: graph, engine: graphEngine, broker, accent: agentAccent })
+  for (const mod of graphFeature.modules) graphRegistry.register(mod.tools)
+  graphRegistry.register(createGraphTools({ store: graph, proposals }))
+  graphRegistry.register(memoryModule.tools)
+  graphEngine.setContextProvider(() => describeGraphContext(graph))
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
@@ -360,13 +400,20 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     getKey: () => trip.getState().activeId ?? '__no_trip__',
     source: trip,
   })
+  await createFeatureChatController({
+    engine: graphEngine,
+    scope: storage.scope('graph-chat'),
+    systemPrompt: GRAPH_PROMPT,
+    getKey: () => 'graph',
+    source: { subscribe: () => () => {} },
+  })
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings, board, search, orchestrator, tripFeature]) {
+  for (const feature of [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip }
+  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph }
 }

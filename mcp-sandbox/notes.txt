@@ -1,0 +1,3 @@
+Demo note: the Connectors agent can read this file through the filesystem MCP server.
+- shipping list: tent, stove, maps
+- reminder: the bridge must be running (npm run mcp-bridge)

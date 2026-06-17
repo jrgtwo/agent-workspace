@@ -52,6 +52,12 @@ export default defineConfig({
         rewrite: () => '/api/interpreter',
         headers: { 'User-Agent': process.env.NOMINATIM_UA ?? 'agent-practice/1.0 (local AI workspace)' },
       },
+      // MCP bridge (Phase 1 connectors): browser calls same-origin /mcp/... -> local bridge.
+      '/mcp': {
+        target: `http://localhost:${process.env.MCP_BRIDGE_PORT ?? 5175}`,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/mcp/, ''),
+      },
     },
   },
 })

@@ -44,6 +44,11 @@ import type { GraphProposalPayload } from '../modules/graph/types'
 import { describeKanbanContext } from '../modules/kanban/context'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { describeNotesContext } from '../modules/docEditor/context'
+import { McpClient } from '../core/mcp/mcpClient'
+import { McpStore } from '../core/mcp/mcpStore'
+import { toToolDefs } from '../core/mcp/mcpAdapter'
+import { describeConnectorsContext } from '../modules/connectors/context'
+import { createConnectorsFeature } from '../features/connectors'
 import { createStorage } from '../core/storage/storage'
 import { persistState } from '../core/storage/persistState'
 import type { StorageBackend } from '../core/storage/types'
@@ -139,6 +144,14 @@ const SEARCH_PROMPT =
   'results — only use what web_search returned; if it returned nothing, say so. When you learn a durable ' +
   'preference about the user, call the remember tool. Your tools are: web_search, remember — no others.'
 
+const CONNECTORS_PROMPT =
+  'You are a local, privacy-first assistant with access to external "connector" tools the user plugged ' +
+  'in via MCP. The connector tools currently available are listed in your context each turn — use them ' +
+  'to fulfill the request. Each connector call asks the user to APPROVE it first; if they deny, stop and ' +
+  'explain — do not retry. If no connector tools are available, tell the user the MCP bridge may not be ' +
+  'running (they can start it and hit Refresh). Do not invent tool results — only report what a tool ' +
+  'returned. When you learn a durable preference about the user, call remember.'
+
 export interface AppServices {
   features: FeatureManifest[]
   layoutStores: Map<string, LayoutStore>
@@ -163,11 +176,13 @@ export interface AppServices {
   searchResults: SearchResultsStore
   research: ResearchRegistry
   geo: GeoRegistry
+  mcp: McpStore
 }
 
 export interface CreateServicesOpts {
   client?: Pick<LlamaClient, 'chat'>
   backend?: StorageBackend
+  mcpClient?: Pick<McpClient, 'listTools' | 'call'>
 }
 
 // Async: awaits hydration of document/chat/memory before returning, so the UI can render
@@ -313,6 +328,29 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   graphRegistry.register(memoryModule.tools)
   graphEngine.setContextProvider(() => describeGraphContext(graph))
 
+  // Connectors (MCP): tools come from a local bridge over HTTP. Browser never speaks MCP directly.
+  const mcpStore = new McpStore()
+  const mcpClient = (opts?.mcpClient ?? new McpClient(env.VITE_MCP_URL ?? '/mcp')) as McpClient
+  const connectorsRegistry = new Registry()
+  const connectorsEngine = new AgentEngine(client, connectorsRegistry, broker, 'connectors-chat')
+  connectorsRegistry.register(memoryModule.tools) // memory is always available
+  // (Re)load connector tools from the bridge. Resilient: if the bridge is down the app still boots.
+  const loadConnectors = async () => {
+    mcpStore.setLoading()
+    try {
+      const tools = await mcpClient.listTools()
+      connectorsRegistry.register(toToolDefs(tools, { client: mcpClient, connectorId: 'filesystem', locality: 'LOCAL' }))
+      mcpStore.setReady(tools.map((t) => ({ name: t.name, description: t.description })))
+    } catch (err) {
+      mcpStore.setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+  await loadConnectors()
+  connectorsEngine.setContextProvider(() => describeConnectorsContext(mcpStore))
+  const connectorsFeature = createConnectorsFeature({
+    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent,
+  })
+
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
   const orchestratorEngine = new AgentEngine(client, orchestratorRegistry, broker, 'orchestrator', 10)
@@ -407,13 +445,20 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     getKey: () => 'graph',
     source: { subscribe: () => () => {} },
   })
+  await createFeatureChatController({
+    engine: connectorsEngine,
+    scope: storage.scope('connectors-chat'),
+    systemPrompt: CONNECTORS_PROMPT,
+    getKey: () => 'connectors',
+    source: { subscribe: () => () => {} },
+  })
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature]) {
+  for (const feature of [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph }
+  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore }
 }

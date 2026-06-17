@@ -1,0 +1,12 @@
+/* src/modules/connectors/connectors.css */
+.connectors { display: flex; flex-direction: column; height: 100%; background: var(--surface); color: var(--text); }
+.connectors__bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.connectors__status { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+.connectors__status[data-status="ready"] { color: var(--accent-strong); }
+.connectors__status[data-status="error"] { color: var(--danger); }
+.connectors__refresh { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 4px 12px; cursor: pointer; }
+.connectors__list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+.connectors__tool { display: flex; flex-direction: column; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 8px 10px; }
+.connectors__tool-name { font-weight: 600; color: var(--text-strong); }
+.connectors__tool-desc { font-size: 12px; color: var(--text-muted); }
+.connectors__empty { color: var(--text-muted); padding: 24px; text-align: center; }

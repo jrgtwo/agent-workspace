@@ -1,16 +1,16 @@
 import type { WorkspaceModule } from '../../core/types'
 import type { DocEditorStore } from '../docEditor/docEditorStore'
-import { DocEditorPanel } from '../docEditor/docEditorModule'
 import { ProposalStore } from '../../core/proposalStore'
 import { ProposalApplier } from '../../core/proposalApplier'
+import type { ConnectorsSaveStore } from './connectorsSaveStore'
+import { ConnectorsViewer } from './ConnectorsViewer'
 
 /**
- * Read/preview pane for the Connectors feature, bound to a private scratch DocEditorStore that the
- * `open_in_viewer` tool fills. It reuses the document editor render, but with its own empty
- * proposal store so Notes edit-proposals never leak in — and the connector agent has no edit tools
- * for this store, so no proposals arise (it behaves as a viewer you can also hand-edit).
+ * Read/edit pane for the Connectors feature, bound to a private scratch DocEditorStore that the
+ * `open_in_viewer` tool fills. Reuses the document editor render with its own empty proposal store
+ * (Notes edit-proposals never leak in). A Save bar writes the user's edits back to the source file.
  */
-export function createConnectorsViewerModule(scratch: DocEditorStore): WorkspaceModule {
+export function createConnectorsViewerModule(scratch: DocEditorStore, save: ConnectorsSaveStore): WorkspaceModule {
   const proposals = new ProposalStore(() => 'connectors-viewer-noop')
   const applier = new ProposalApplier(proposals)
   return {
@@ -19,6 +19,6 @@ export function createConnectorsViewerModule(scratch: DocEditorStore): Workspace
     locality: 'LOCAL',
     tools: [],
     layoutHints: { defaultSize: 34, collapsible: false, minSize: 20 },
-    render: () => <DocEditorPanel store={scratch} proposals={proposals} applier={applier} />,
+    render: () => <ConnectorsViewer scratch={scratch} save={save} proposals={proposals} applier={applier} />,
   }
 }

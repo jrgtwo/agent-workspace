@@ -8,6 +8,7 @@ import type { PermissionBroker } from '../core/permissionBroker'
 import type { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
 import type { ComposerDraftStore } from '../modules/aiChat/composer/composerDraftStore'
 import type { DocEditorStore } from '../modules/docEditor/docEditorStore'
+import type { ConnectorsSaveStore } from '../modules/connectors/connectorsSaveStore'
 
 export function createConnectorsFeature(deps: {
   mcp: McpStore
@@ -17,10 +18,11 @@ export function createConnectorsFeature(deps: {
   accent: AgentAccentStore
   draft: ComposerDraftStore
   scratch: DocEditorStore
+  save: ConnectorsSaveStore
 }): FeatureManifest {
   const panel = createConnectorsModule(deps.mcp, deps.onRefresh, deps.draft)
   const chat = createAiChatModule(deps.engine, deps.broker, deps.accent, deps.draft) // the Connectors feature's own agent
-  const viewer = createConnectorsViewerModule(deps.scratch) // shows files the agent opens via open_in_viewer
+  const viewer = createConnectorsViewerModule(deps.scratch, deps.save) // shows + saves files the agent opens
   return {
     id: 'connectors',
     name: 'Connectors',

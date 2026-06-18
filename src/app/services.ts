@@ -49,6 +49,7 @@ import { McpClient } from '../core/mcp/mcpClient'
 import { McpStore } from '../core/mcp/mcpStore'
 import { toToolDefs } from '../core/mcp/mcpAdapter'
 import { createOpenInViewerTool } from '../modules/connectors/openInViewerTool'
+import { ConnectorsSaveStore } from '../modules/connectors/connectorsSaveStore'
 import { describeConnectorsContext } from '../modules/connectors/context'
 import { createConnectorsFeature } from '../features/connectors'
 import { createStorage } from '../core/storage/storage'
@@ -152,8 +153,10 @@ const CONNECTORS_PROMPT =
   'to fulfill the request. Each connector call asks the user to APPROVE it first; if they deny, stop and ' +
   'explain — do not retry. If no connector tools are available, tell the user the MCP bridge may not be ' +
   'running (they can start it and hit Refresh). To SHOW the user a file, call open_in_viewer with its ' +
-  'path — its contents load into the viewer pane beside this chat. Do not invent tool results — only ' +
-  'report what a tool returned. When you learn a durable preference about the user, call remember.'
+  'path — its contents load into the viewer pane beside this chat, where the user can edit it and ' +
+  'click Save to write changes back to the file. You cannot save files yourself yet. Do not invent ' +
+  'tool results — only report what a tool returned. When you learn a durable preference about the ' +
+  'user, call remember.'
 
 export interface AppServices {
   features: FeatureManifest[]
@@ -341,6 +344,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   // Transient (no persistence) and separate from the Notes document library.
   const connectorsScratch = new DocEditorStore('No file open')
   connectorsRegistry.register([createOpenInViewerTool({ client: mcpClient, scratch: connectorsScratch })])
+  // User-driven save of edits back to the source file (the Save click is the authorization).
+  const connectorsSave = new ConnectorsSaveStore({ client: mcpClient, scratch: connectorsScratch })
   // (Re)load connector tools from the bridge. Resilient: if the bridge is down the app still boots.
   const loadConnectors = async () => {
     mcpStore.setLoading()
@@ -356,7 +361,7 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   connectorsEngine.setContextProvider(() => describeConnectorsContext(mcpStore))
   const connectorsDraft = new ComposerDraftStore()
   const connectorsFeature = createConnectorsFeature({
-    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, scratch: connectorsScratch,
+    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, scratch: connectorsScratch, save: connectorsSave,
   })
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.

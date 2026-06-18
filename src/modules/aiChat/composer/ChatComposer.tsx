@@ -1,8 +1,11 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { MilkdownProvider, Milkdown, useEditor } from '@milkdown/react'
 import { $prose, replaceAll, getMarkdown } from '@milkdown/kit/utils'
 import { keymap } from '@milkdown/kit/prose/keymap'
+import { editorViewCtx } from '@milkdown/kit/core'
 import type { EditorView } from '@milkdown/kit/prose/view'
+import { useStore } from '../../../core/emitter'
+import type { ComposerDraftStore } from './composerDraftStore'
 import { buildMilkdownEditor } from '../../docEditor/milkdown/editorConfig'
 import { shouldSend } from './shouldSend'
 
@@ -14,6 +17,8 @@ interface Props {
   meter?: string
   /** Tooltip detail for the meter (e.g. "14 messages · 8,432 chars"). */
   meterTitle?: string
+  /** Optional channel that prefills the composer (e.g. Connectors example prompts). */
+  draft?: ComposerDraftStore
 }
 
 export function ComposerButtons({
@@ -46,7 +51,12 @@ export function ComposerButtons({
   )
 }
 
-function ComposerInner({ busy, onSend, onStop, meter, meterTitle }: Props) {
+// Stable fallback so the draft hook order stays constant when no draft store is provided.
+// getState must return a stable reference — useSyncExternalStore loops if the snapshot changes identity.
+const EMPTY_DRAFT_STATE = { text: '', seq: 0 }
+const NOOP_DRAFT = { subscribe: () => () => {}, getState: () => EMPTY_DRAFT_STATE }
+
+function ComposerInner({ busy, onSend, onStop, meter, meterTitle, draft }: Props) {
   const mdRef = useRef('')
   const busyRef = useRef(busy)
   busyRef.current = busy
@@ -79,6 +89,20 @@ function ComposerInner({ busy, onSend, onStop, meter, meterTitle }: Props) {
     )
     return editor
   }, [])
+
+  // Prefill from the draft channel (e.g. a clicked example prompt): load the text into the
+  // editor without sending, so the user can edit and press Send. seq bumps even for repeats.
+  const { text: draftText, seq: draftSeq } = useStore(draft ?? NOOP_DRAFT)
+  const appliedSeq = useRef(0)
+  useEffect(() => {
+    if (draftSeq === 0 || draftSeq === appliedSeq.current) return
+    appliedSeq.current = draftSeq
+    const editor = get()
+    if (!editor) return
+    editor.action(replaceAll(draftText))
+    mdRef.current = draftText
+    editor.action((ctx) => { ctx.get(editorViewCtx).focus() })
+  }, [draftSeq, draftText, get])
 
   // Button send path: read current markdown, send, then clear via replaceAll.
   const onSendClick = () => {
@@ -114,3 +138,4 @@ export function ChatComposer(props: Props) {
     </MilkdownProvider>
   )
 }
+

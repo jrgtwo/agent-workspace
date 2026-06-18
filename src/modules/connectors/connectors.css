@@ -5,6 +5,10 @@
 .connectors__status[data-status="ready"] { color: var(--accent-strong); }
 .connectors__status[data-status="error"] { color: var(--danger); }
 .connectors__refresh { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 4px 12px; cursor: pointer; }
+.connectors__hint { margin: 0; padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.connectors__examples { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.connectors__example { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 4px 10px; font-size: 12px; cursor: pointer; text-align: left; }
+.connectors__example:hover { color: var(--accent-strong); border-color: var(--accent-strong); }
 .connectors__list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow: auto; }
 .connectors__tool { display: flex; flex-direction: column; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 8px 10px; }
 .connectors__tool-name { font-weight: 600; color: var(--text-strong); }

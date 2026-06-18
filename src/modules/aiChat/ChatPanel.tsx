@@ -5,11 +5,12 @@ import type { PermissionBroker } from '../../core/permissionBroker'
 import type { AgentAccentStore } from './agentAccentStore'
 import { Message } from './Message'
 import { ChatComposer } from './composer/ChatComposer'
+import type { ComposerDraftStore } from './composer/composerDraftStore'
 import { StatusBar } from './StatusBar'
 import { PermissionRequest, isHighSeverity } from './PermissionRequest'
 import './aiChat.css'
 
-export function ChatPanel({ engine, broker, accent }: { engine: AgentEngine; broker: PermissionBroker; accent: AgentAccentStore }) {
+export function ChatPanel({ engine, broker, accent, draft }: { engine: AgentEngine; broker: PermissionBroker; accent: AgentAccentStore; draft?: ComposerDraftStore }) {
   const { messages, streaming, busy } = useStore(engine)
   const { pending } = useStore(broker)
   const { color } = useStore(accent)
@@ -71,7 +72,7 @@ export function ChatPanel({ engine, broker, accent }: { engine: AgentEngine; bro
       {popups.length > 0 && (
         <PermissionRequest req={popups[0]} onAllow={(id) => broker.allow(id)} onDeny={(id) => broker.deny(id)} />
       )}
-      <ChatComposer busy={busy} onSend={send} onStop={() => engine.stop()} meter={meter} meterTitle={meterTitle} />
+      <ChatComposer busy={busy} onSend={send} onStop={() => engine.stop()} meter={meter} meterTitle={meterTitle} draft={draft} />
       <StatusBar busy={busy} pendingCount={mine.length} />
     </div>
   )

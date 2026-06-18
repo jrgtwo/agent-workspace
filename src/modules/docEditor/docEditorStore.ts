@@ -1,6 +1,6 @@
 import { Emitter } from '../../core/emitter'
 
-interface DocState { name: string; text: string }
+export interface DocState { name: string; text: string; sourcePath?: string }
 
 export class DocEditorStore extends Emitter<DocState> {
   private state: DocState

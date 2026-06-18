@@ -10,7 +10,7 @@ import { MilkdownEditor } from './milkdownEditor'
 import { PendingReview } from '../proposals/PendingReview'
 import type { ProposalApplier } from '../../core/proposalApplier'
 
-function DocEditorPanel({ store, proposals, applier, saveImage }: { store: DocEditorStore; proposals: ProposalStore; applier: ProposalApplier; saveImage?: (file: File) => Promise<string> }) {
+export function DocEditorPanel({ store, proposals, applier, saveImage }: { store: DocEditorStore; proposals: ProposalStore; applier: ProposalApplier; saveImage?: (file: File) => Promise<string> }) {
   const { text } = useStore(store)
   const { pending } = useStore(proposals)
   const mine = pending.filter((c) => c.moduleId === 'doc-editor')

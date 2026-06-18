@@ -2,13 +2,20 @@ import type { JSX } from 'react'
 import { useStore } from '../../core/emitter'
 import type { WorkspaceModule } from '../../core/types'
 import type { McpStore } from '../../core/mcp/mcpStore'
+import type { ComposerDraftStore } from '../aiChat/composer/composerDraftStore'
 import './connectors.css'
+
+// Example prompts that demonstrate the flow — clicking one prefills the chat composer.
+const EXAMPLE_PROMPTS = [
+  'List the files available to you.',
+  'Read README.md and summarize it.',
+]
 
 function statusLabel(s: string): string {
   return s === 'ready' ? 'connected' : s === 'loading' ? 'connecting…' : s === 'error' ? 'offline' : 'idle'
 }
 
-function ConnectorsPanel({ store, onRefresh }: { store: McpStore; onRefresh: () => void }): JSX.Element {
+function ConnectorsPanel({ store, onRefresh, draft }: { store: McpStore; onRefresh: () => void; draft?: ComposerDraftStore }): JSX.Element {
   const { status, tools, error } = useStore(store)
   return (
     <div className="connectors" aria-label="connectors">
@@ -16,6 +23,17 @@ function ConnectorsPanel({ store, onRefresh }: { store: McpStore; onRefresh: () 
         <span className="connectors__status" data-status={status}>{statusLabel(status)}</span>
         <button type="button" className="connectors__refresh" onClick={onRefresh}>Refresh</button>
       </div>
+      <p className="connectors__hint">
+        These are tools the assistant on the right can use. Ask it in plain language — it requests
+        your approval before each call.
+      </p>
+      {status === 'ready' && tools.length > 0 && (
+        <div className="connectors__examples">
+          {EXAMPLE_PROMPTS.map((p) => (
+            <button key={p} type="button" className="connectors__example" onClick={() => draft?.set(p)}>{p}</button>
+          ))}
+        </div>
+      )}
       {status === 'ready' && tools.length > 0 ? (
         <ul className="connectors__list">
           {tools.map((t) => (
@@ -38,12 +56,12 @@ function ConnectorsPanel({ store, onRefresh }: { store: McpStore; onRefresh: () 
   )
 }
 
-export function createConnectorsModule(store: McpStore, onRefresh: () => void): WorkspaceModule {
+export function createConnectorsModule(store: McpStore, onRefresh: () => void, draft?: ComposerDraftStore): WorkspaceModule {
   return {
     id: 'connectors-panel',
     title: 'Connectors',
     locality: 'NETWORK',
     tools: [],
-    render: () => <ConnectorsPanel store={store} onRefresh={onRefresh} />,
+    render: () => <ConnectorsPanel store={store} onRefresh={onRefresh} draft={draft} />,
   }
 }

@@ -9,6 +9,7 @@ export function describeConnectorsContext(store: McpStore): string {
   return [
     `You have ${tools.length} connector tool${tools.length === 1 ? '' : 's'} available:`,
     ...tools.map((t) => `  - ${t.name}: ${t.description}`),
+    '  - open_in_viewer: open a file by path into the viewer pane so the user can see it.',
     "Use them to fulfill the user's request. Each call asks the user to approve it first.",
   ].join('\n')
 }

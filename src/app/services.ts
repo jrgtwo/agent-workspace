@@ -9,6 +9,7 @@ import { AgentEngine } from '../core/agentEngine'
 import { ThemeStore, applyTheme } from '../core/themeStore'
 import { createFeatureChatController } from '../core/featureChatController'
 import { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
+import { ComposerDraftStore } from '../modules/aiChat/composer/composerDraftStore'
 import { DocEditorStore } from '../modules/docEditor/docEditorStore'
 import { createMemoryViewerModule } from '../modules/memoryViewer/memoryViewerModule'
 import { createNotesFeature } from '../features/notes'
@@ -47,6 +48,7 @@ import { describeNotesContext } from '../modules/docEditor/context'
 import { McpClient } from '../core/mcp/mcpClient'
 import { McpStore } from '../core/mcp/mcpStore'
 import { toToolDefs } from '../core/mcp/mcpAdapter'
+import { createOpenInViewerTool } from '../modules/connectors/openInViewerTool'
 import { describeConnectorsContext } from '../modules/connectors/context'
 import { createConnectorsFeature } from '../features/connectors'
 import { createStorage } from '../core/storage/storage'
@@ -149,8 +151,9 @@ const CONNECTORS_PROMPT =
   'in via MCP. The connector tools currently available are listed in your context each turn — use them ' +
   'to fulfill the request. Each connector call asks the user to APPROVE it first; if they deny, stop and ' +
   'explain — do not retry. If no connector tools are available, tell the user the MCP bridge may not be ' +
-  'running (they can start it and hit Refresh). Do not invent tool results — only report what a tool ' +
-  'returned. When you learn a durable preference about the user, call remember.'
+  'running (they can start it and hit Refresh). To SHOW the user a file, call open_in_viewer with its ' +
+  'path — its contents load into the viewer pane beside this chat. Do not invent tool results — only ' +
+  'report what a tool returned. When you learn a durable preference about the user, call remember.'
 
 export interface AppServices {
   features: FeatureManifest[]
@@ -334,6 +337,10 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const connectorsRegistry = new Registry()
   const connectorsEngine = new AgentEngine(client, connectorsRegistry, broker, 'connectors-chat')
   connectorsRegistry.register(memoryModule.tools) // memory is always available
+  // Private scratch doc the connector agent fills via open_in_viewer; shown in the viewer pane.
+  // Transient (no persistence) and separate from the Notes document library.
+  const connectorsScratch = new DocEditorStore('No file open')
+  connectorsRegistry.register([createOpenInViewerTool({ client: mcpClient, scratch: connectorsScratch })])
   // (Re)load connector tools from the bridge. Resilient: if the bridge is down the app still boots.
   const loadConnectors = async () => {
     mcpStore.setLoading()
@@ -347,8 +354,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   }
   await loadConnectors()
   connectorsEngine.setContextProvider(() => describeConnectorsContext(mcpStore))
+  const connectorsDraft = new ComposerDraftStore()
   const connectorsFeature = createConnectorsFeature({
-    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent,
+    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, scratch: connectorsScratch,
   })
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.

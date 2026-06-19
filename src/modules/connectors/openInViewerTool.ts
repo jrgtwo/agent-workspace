@@ -1,11 +1,7 @@
 import type { ToolDef } from '../../core/types'
 import type { McpClient } from '../../core/mcp/mcpClient'
 import type { DocEditorStore } from '../docEditor/docEditorStore'
-
-/** Filename from a unix- or windows-style path (no node `path` in the browser). */
-function basename(path: string): string {
-  return path.split(/[\\/]/).filter(Boolean).pop() ?? path
-}
+import { openFileIntoViewer } from './connectorsFs'
 
 /**
  * Lets the connector agent open a disk file into the Connectors scratch viewer: it reads the file
@@ -30,12 +26,6 @@ export function createOpenInViewerTool(opts: { client: McpClient; scratch: DocEd
       locality: 'LOCAL',
       describe: (args: unknown) => `Open "${(args as { path?: string })?.path ?? 'file'}" in the viewer?`,
     },
-    handler: async (a: { path: string }) => {
-      const r = await opts.client.call('read_file', { path: a.path })
-      if (!r.ok) return { ok: false, error: r.error ?? 'could not read file' }
-      const name = basename(a.path)
-      opts.scratch.hydrate({ name, text: r.text, sourcePath: a.path })
-      return { ok: true, name, text: r.text }
-    },
+    handler: (a: { path: string }) => openFileIntoViewer(opts.client, opts.scratch, a.path),
   }
 }

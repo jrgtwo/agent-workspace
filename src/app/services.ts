@@ -50,6 +50,8 @@ import { McpStore } from '../core/mcp/mcpStore'
 import { toToolDefs } from '../core/mcp/mcpAdapter'
 import { createOpenInViewerTool } from '../modules/connectors/openInViewerTool'
 import { ConnectorsSaveStore } from '../modules/connectors/connectorsSaveStore'
+import { ConnectorsTreeStore } from '../modules/connectors/connectorsTreeStore'
+import { openFileIntoViewer } from '../modules/connectors/connectorsFs'
 import { describeConnectorsContext } from '../modules/connectors/context'
 import { createConnectorsFeature } from '../features/connectors'
 import { createStorage } from '../core/storage/storage'
@@ -346,6 +348,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   connectorsRegistry.register([createOpenInViewerTool({ client: mcpClient, scratch: connectorsScratch })])
   // User-driven save of edits back to the source file (the Save click is the authorization).
   const connectorsSave = new ConnectorsSaveStore({ client: mcpClient, scratch: connectorsScratch })
+  // File-tree browse: human-driven, so it reads the bridge directly (no broker prompt), like Save.
+  const connectorsTree = new ConnectorsTreeStore({ client: mcpClient })
+  void connectorsTree.load() // resilient: errors land in tree state, app still boots
   // (Re)load connector tools from the bridge. Resilient: if the bridge is down the app still boots.
   const loadConnectors = async () => {
     mcpStore.setLoading()
@@ -362,6 +367,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const connectorsDraft = new ComposerDraftStore()
   const connectorsFeature = createConnectorsFeature({
     mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, scratch: connectorsScratch, save: connectorsSave,
+    tree: connectorsTree,
+    onOpenFile: (path: string) => void openFileIntoViewer(mcpClient, connectorsScratch, path),
+    onTreeRefresh: () => void connectorsTree.load(),
   })
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.

@@ -27,3 +27,15 @@
 .connectors-viewer__close { background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 4px 9px; cursor: pointer; line-height: 1; }
 .connectors-viewer__close:hover { color: var(--danger); border-color: var(--danger); }
 .connectors-viewer__body { flex: 1; min-height: 0; overflow: auto; }
+
+.connectors-tree { display: flex; flex-direction: column; height: 100%; background: var(--surface); color: var(--text); }
+.connectors-tree__bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.connectors-tree__title { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+.connectors-tree__refresh { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 4px 12px; cursor: pointer; }
+.connectors-tree__body { flex: 1; min-height: 0; overflow: auto; padding: 4px 0; }
+.connectors-tree__row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px; background: transparent; border: none; color: var(--text); cursor: pointer; text-align: left; font-size: 13px; }
+.connectors-tree__row:hover { background: var(--surface-2); }
+.connectors-tree__row--directory .connectors-tree__name { color: var(--text-strong); }
+.connectors-tree__icon { width: 16px; flex: none; text-align: center; color: var(--text-muted); }
+.connectors-tree__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.connectors-tree__empty { color: var(--text-muted); padding: 24px; text-align: center; }

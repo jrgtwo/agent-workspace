@@ -1,52 +1,57 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import type { McpClient } from '../../core/mcp/mcpClient'
-import { DocEditorStore } from '../docEditor/docEditorStore'
-import { ConnectorsSaveStore } from './connectorsSaveStore'
+import { OpenDocsStore } from './openDocsStore'
 import { createConnectorsViewerModule } from './connectorsViewerModule'
 
-const fakeClient = () => ({ call: vi.fn().mockResolvedValue({ ok: true, text: '' }) } as unknown as McpClient)
-
-function openViewer(opened: boolean) {
-  const scratch = new DocEditorStore('No file open')
-  if (opened) scratch.hydrate({ name: 'notes.md', text: 'hello', sourcePath: '/notes.md' })
-  const save = new ConnectorsSaveStore({ client: fakeClient(), scratch })
-  render(createConnectorsViewerModule(scratch, save).render())
-  return { scratch }
-}
+const fakeClient = { call: async (_n: string, a: { path: string }) => ({ ok: true, text: '# ' + a.path }) } as unknown as McpClient
 
 describe('connectors viewer Close control', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('hides Close when no file is open', () => {
-    openViewer(false)
-    expect(screen.queryByRole('button', { name: /close/i })).toBeNull()
+  it('shows "No file open" when no tabs are open', () => {
+    const open = new OpenDocsStore(fakeClient)
+    render(createConnectorsViewerModule(open).render())
+    expect(screen.getByText(/no file open/i)).toBeInTheDocument()
   })
 
-  it('clears the viewer when closing a clean file (no confirm)', () => {
+  it('closes a tab when clicking its close button (clean file, no confirm)', async () => {
+    const open = new OpenDocsStore(fakeClient)
+    await open.open('/a.md')
+    await open.open('/b.md')
+    render(createConnectorsViewerModule(open).render())
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /a\.md/ })).toBeInTheDocument())
+    const closeBtn = screen.getByLabelText('close a.md')
     const confirm = vi.spyOn(window, 'confirm')
-    const { scratch } = openViewer(true)
-    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+    fireEvent.click(closeBtn)
     expect(confirm).not.toHaveBeenCalled()
-    expect(scratch.getState().sourcePath).toBeUndefined()
-    expect(scratch.getState().name).toBe('No file open')
+    expect(open.getState().tabs.find((t) => t.path === '/a.md')).toBeUndefined()
   })
 
-  it('confirms before discarding unsaved changes; cancel keeps the file', () => {
-    const { scratch } = openViewer(true)
-    act(() => { scratch.setText('hello edited') })
+  it('confirms before discarding unsaved changes; cancel keeps the tab', async () => {
+    const open = new OpenDocsStore(fakeClient)
+    await open.open('/a.md')
+    render(createConnectorsViewerModule(open).render())
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /a\.md/ })).toBeInTheDocument())
+    act(() => { open.activeDoc()!.doc.setText('edited') })
     vi.spyOn(window, 'confirm').mockReturnValue(false)
 
-    fireEvent.click(screen.getByRole('button', { name: /close/i }))
-    expect(scratch.getState().sourcePath).toBe('/notes.md') // unchanged
+    fireEvent.click(screen.getByLabelText('close a.md'))
+    expect(open.getState().tabs.find((t) => t.path === '/a.md')).toBeDefined()
   })
 
-  it('discards unsaved changes when the confirm is accepted', () => {
-    const { scratch } = openViewer(true)
-    act(() => { scratch.setText('hello edited') })
+  it('discards unsaved changes when confirm is accepted', async () => {
+    const open = new OpenDocsStore(fakeClient)
+    await open.open('/a.md')
+    render(createConnectorsViewerModule(open).render())
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /a\.md/ })).toBeInTheDocument())
+    act(() => { open.activeDoc()!.doc.setText('edited') })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-    fireEvent.click(screen.getByRole('button', { name: /close/i }))
-    expect(scratch.getState().sourcePath).toBeUndefined()
+    fireEvent.click(screen.getByLabelText('close a.md'))
+    expect(open.getState().tabs.find((t) => t.path === '/a.md')).toBeUndefined()
   })
 })

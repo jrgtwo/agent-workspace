@@ -1,20 +1,18 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { McpClient } from '../../core/mcp/mcpClient'
-import { DocEditorStore } from '../docEditor/docEditorStore'
-import { ConnectorsSaveStore } from './connectorsSaveStore'
+import { OpenDocsStore } from './openDocsStore'
 import { createConnectorsViewerModule } from './connectorsViewerModule'
 
-const fakeClient = () => ({ call: vi.fn().mockResolvedValue({ ok: true, text: '' }) } as unknown as McpClient)
+const fakeClient = { call: async (_n: string, a: { path: string }) => ({ ok: true, text: '# ' + a.path }) } as unknown as McpClient
 
 describe('connectors viewer module', () => {
-  it('renders the scratch store contents in the viewer', async () => {
-    const scratch = new DocEditorStore('README.md', '# Project\n\nsome contents')
-    const save = new ConnectorsSaveStore({ client: fakeClient(), scratch })
-    render(createConnectorsViewerModule(scratch, save).render())
+  it('renders open file contents in the viewer', async () => {
+    const open = new OpenDocsStore(fakeClient)
+    await open.open('/docs/README.md')
+    render(createConnectorsViewerModule(open).render())
 
     const editorEl = await screen.findByLabelText('document')
-    expect(editorEl.textContent).toContain('Project')
-    expect(editorEl.textContent).toContain('some contents')
+    expect(editorEl.textContent).toContain('/docs/README.md')
   })
 })

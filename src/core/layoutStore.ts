@@ -1,6 +1,6 @@
 import { Emitter } from './emitter'
 import type { LayoutNode } from './types'
-import { collectModuleIds, move as moveNode, type Zone } from './layoutTree'
+import { collectModuleIds, insertRelative, move as moveNode, normalize, removePanel, type Zone } from './layoutTree'
 
 function sameModuleSet(a: LayoutNode, b: LayoutNode): boolean {
   const sa = new Set(collectModuleIds(a))
@@ -49,6 +49,26 @@ export class LayoutStore extends Emitter<LayoutState> {
   move(sourceId: string, targetId: string, zone: Zone): void {
     const next = moveNode(this.state.layout, sourceId, targetId, zone)
     if (next === this.state.layout) return
+    this.state = { layout: next }
+    this.notify()
+  }
+
+  addPanel(moduleId: string): void {
+    const ids = collectModuleIds(this.state.layout)
+    if (ids.includes(moduleId)) return
+    const anchor = ids[ids.length - 1]
+    const moved: LayoutNode = { type: 'panel', moduleId, draggable: true }
+    const next = normalize(insertRelative(this.state.layout, anchor, moved, 'right'))
+    this.state = { layout: next }
+    this.notify()
+  }
+
+  removePanelById(moduleId: string): void {
+    const ids = collectModuleIds(this.state.layout)
+    if (ids.length <= 1) return
+    if (!ids.includes(moduleId)) return
+    const next = removePanel(this.state.layout, moduleId)
+    if (!next) return
     this.state = { layout: next }
     this.notify()
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { McpClient } from '../../core/mcp/mcpClient'
-import { DocEditorStore } from '../docEditor/docEditorStore'
+import { OpenDocsStore } from './openDocsStore'
 import { createOpenInViewerTool } from './openInViewerTool'
 
 function fakeClient(result: { ok: boolean; text?: string; error?: string }) {
@@ -8,35 +8,36 @@ function fakeClient(result: { ok: boolean; text?: string; error?: string }) {
 }
 
 describe('open_in_viewer tool', () => {
-  it('reads the file via the bridge and hydrates the scratch store', async () => {
+  it('opens the file into a tab and returns its contents', async () => {
     const client = fakeClient({ ok: true, text: '# README\nhello' })
-    const scratch = new DocEditorStore('No file open')
-    const tool = createOpenInViewerTool({ client, scratch })
+    const open = new OpenDocsStore(client)
+    const tool = createOpenInViewerTool({ open })
 
     const res = await tool.handler({ path: '/docs/sub/README.md' })
 
     expect(client.call).toHaveBeenCalledWith('read_file', { path: '/docs/sub/README.md' })
-    // viewer now shows the file: basename as the title, contents as text, source path retained
-    expect(scratch.getState()).toEqual({ name: 'README.md', text: '# README\nhello', sourcePath: '/docs/sub/README.md' })
-    // contents are returned so the agent has them in-context too
+    expect(open.getState().tabs).toHaveLength(1)
+    expect(open.getState().tabs[0]).toMatchObject({ path: '/docs/sub/README.md', name: 'README.md' })
     expect(res).toEqual({ ok: true, name: 'README.md', text: '# README\nhello' })
   })
 
   it('is permission-gated as a LOCAL read naming the path', () => {
-    const tool = createOpenInViewerTool({ client: fakeClient({ ok: true }), scratch: new DocEditorStore('x') })
+    const client = fakeClient({ ok: true })
+    const open = new OpenDocsStore(client)
+    const tool = createOpenInViewerTool({ open })
     expect(tool.name).toBe('open_in_viewer')
     expect(tool.permission).toMatchObject({ kind: 'read', locality: 'LOCAL' })
     expect(tool.permission?.describe({ path: 'a.md' })).toMatch(/a\.md/)
   })
 
-  it('reports an error and leaves the viewer untouched when the read fails', async () => {
+  it('returns an error when the read fails (no tab opened)', async () => {
     const client = fakeClient({ ok: false, error: 'no such file' })
-    const scratch = new DocEditorStore('No file open')
-    const tool = createOpenInViewerTool({ client, scratch })
+    const open = new OpenDocsStore(client)
+    const tool = createOpenInViewerTool({ open })
 
     const res = await tool.handler({ path: '/missing.md' })
 
-    expect(res).toEqual({ ok: false, error: 'no such file' })
-    expect(scratch.getState()).toEqual({ name: 'No file open', text: '' })
+    expect(res).toEqual({ ok: false, error: 'could not open file' })
+    expect(open.getState().tabs).toHaveLength(0)
   })
 })

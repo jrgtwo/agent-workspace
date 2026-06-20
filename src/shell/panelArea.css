@@ -27,6 +27,14 @@
 }
 .panel-frame__grip:hover { color: var(--accent); }
 .panel-frame__grip:active { cursor: grabbing; }
+.panel-frame__remove {
+  margin-left: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.panel-frame__remove:hover { color: var(--text); }
 .panel-area__reset {
   position: absolute; top: 6px; right: 10px; z-index: 5;
   font: inherit; font-size: var(--text-xs); color: var(--text-muted);

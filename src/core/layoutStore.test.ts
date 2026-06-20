@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { reconcile } from './layoutStore'
+import { LayoutStore, reconcile } from './layoutStore'
 import type { LayoutNode } from './types'
+import { collectModuleIds } from './layoutTree'
 
 const def: LayoutNode = { type: 'split', direction: 'horizontal', children: [
   { type: 'panel', moduleId: 'explorer' },
@@ -36,7 +37,42 @@ function findIn(n: LayoutNode, id: string): boolean {
   return n.type === 'panel' ? n.moduleId === id : n.children.some((c) => findIn(c, id))
 }
 
-import { LayoutStore } from './layoutStore'
+const base: LayoutNode = { type: 'split', direction: 'horizontal', children: [
+  { type: 'panel', moduleId: 'a', draggable: true }, { type: 'panel', moduleId: 'b', draggable: true },
+] }
+
+describe('LayoutStore add/remove', () => {
+  it('adds a new panel', () => {
+    const s = new LayoutStore(base)
+    s.addPanel('c')
+    expect(collectModuleIds(s.getState().layout).sort()).toEqual(['a', 'b', 'c'])
+  })
+  it('is a no-op when the panel already exists', () => {
+    const s = new LayoutStore(base)
+    const before = s.getState().layout
+    s.addPanel('a')
+    expect(s.getState().layout).toBe(before)
+  })
+  it('removes a panel', () => {
+    const s = new LayoutStore(base)
+    s.removePanelById('b')
+    expect(collectModuleIds(s.getState().layout)).toEqual(['a'])
+  })
+  it('will not remove the last panel', () => {
+    const s = new LayoutStore({ type: 'panel', moduleId: 'a', draggable: true })
+    const before = s.getState().layout
+    s.removePanelById('a')
+    expect(s.getState().layout).toBe(before)
+  })
+  it('does not notify when removing an id that is not present', () => {
+    const s = new LayoutStore(base)
+    let notified = false
+    s.subscribe(() => { notified = true })
+    s.removePanelById('zzz')
+    expect(notified).toBe(false)
+    expect(s.getState().layout).toBe(base)
+  })
+})
 
 const dflt: LayoutNode = { type: 'split', direction: 'horizontal', children: [
   { type: 'panel', moduleId: 'explorer' },

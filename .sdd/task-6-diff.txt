@@ -1,0 +1,78 @@
+diff --git a/src/core/layoutStore.test.ts b/src/core/layoutStore.test.ts
+index 692c602..52253e3 100644
+--- a/src/core/layoutStore.test.ts
++++ b/src/core/layoutStore.test.ts
+@@ -37,6 +37,36 @@ function findIn(n: LayoutNode, id: string): boolean {
+ }
+ 
+ import { LayoutStore } from './layoutStore'
++import { collectModuleIds } from './layoutTree'
++
++const base: LayoutNode = { type: 'split', direction: 'horizontal', children: [
++  { type: 'panel', moduleId: 'a', draggable: true }, { type: 'panel', moduleId: 'b', draggable: true },
++] }
++
++describe('LayoutStore add/remove', () => {
++  it('adds a new panel', () => {
++    const s = new LayoutStore(base)
++    s.addPanel('c')
++    expect(collectModuleIds(s.getState().layout).sort()).toEqual(['a', 'b', 'c'])
++  })
++  it('is a no-op when the panel already exists', () => {
++    const s = new LayoutStore(base)
++    const before = s.getState().layout
++    s.addPanel('a')
++    expect(s.getState().layout).toBe(before)
++  })
++  it('removes a panel', () => {
++    const s = new LayoutStore(base)
++    s.removePanelById('b')
++    expect(collectModuleIds(s.getState().layout)).toEqual(['a'])
++  })
++  it('will not remove the last panel', () => {
++    const s = new LayoutStore({ type: 'panel', moduleId: 'a', draggable: true })
++    const before = s.getState().layout
++    s.removePanelById('a')
++    expect(s.getState().layout).toBe(before)
++  })
++})
+ 
+ const dflt: LayoutNode = { type: 'split', direction: 'horizontal', children: [
+   { type: 'panel', moduleId: 'explorer' },
+diff --git a/src/core/layoutStore.ts b/src/core/layoutStore.ts
+index e64b16d..cda49a5 100644
+--- a/src/core/layoutStore.ts
++++ b/src/core/layoutStore.ts
+@@ -1,6 +1,6 @@
+ import { Emitter } from './emitter'
+ import type { LayoutNode } from './types'
+-import { collectModuleIds, move as moveNode, type Zone } from './layoutTree'
++import { collectModuleIds, insertRelative, move as moveNode, normalize, removePanel, type Zone } from './layoutTree'
+ 
+ function sameModuleSet(a: LayoutNode, b: LayoutNode): boolean {
+   const sa = new Set(collectModuleIds(a))
+@@ -53,6 +53,24 @@ export class LayoutStore extends Emitter<LayoutState> {
+     this.notify()
+   }
+ 
++  addPanel(moduleId: string): void {
++    const ids = collectModuleIds(this.state.layout)
++    if (ids.includes(moduleId)) return
++    const anchor = ids[ids.length - 1]
++    const moved: LayoutNode = { type: 'panel', moduleId, draggable: true }
++    const next = normalize(insertRelative(this.state.layout, anchor, moved, 'right'))
++    this.state = { layout: next }
++    this.notify()
++  }
++
++  removePanelById(moduleId: string): void {
++    if (collectModuleIds(this.state.layout).length <= 1) return
++    const next = removePanel(this.state.layout, moduleId)
++    if (!next) return
++    this.state = { layout: next }
++    this.notify()
++  }
++
+   reset(): void {
+     this.state = { layout: this.def }
+     this.notify()

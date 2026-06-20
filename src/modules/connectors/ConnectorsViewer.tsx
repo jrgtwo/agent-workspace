@@ -1,59 +1,61 @@
-import { useEffect } from 'react'
+// src/modules/connectors/ConnectorsViewer.tsx
 import { useStore } from '../../core/emitter'
-import type { DocEditorStore } from '../docEditor/docEditorStore'
 import { DocEditorPanel } from '../docEditor/docEditorModule'
-import type { ProposalStore } from '../../core/proposalStore'
-import type { ProposalApplier } from '../../core/proposalApplier'
-import type { ConnectorsSaveStore, SaveStatus } from './connectorsSaveStore'
+import { ProposalStore } from '../../core/proposalStore'
+import { ProposalApplier } from '../../core/proposalApplier'
+import type { OpenDocsStore } from './openDocsStore'
 import './connectors.css'
 
-function statusHint(dirty: boolean, status: SaveStatus, error?: string): string {
-  if (status === 'saving') return 'Saving…'
-  if (status === 'error') return error ? `Save failed: ${error}` : 'Save failed'
-  if (dirty) return 'Unsaved changes'
-  if (status === 'saved') return 'Saved'
-  return ''
-}
+const proposals = new ProposalStore(() => 'connectors-viewer-noop')
+const applier = new ProposalApplier(proposals)
 
-export function ConnectorsViewer({ scratch, save, proposals, applier }: {
-  scratch: DocEditorStore
-  save: ConnectorsSaveStore
-  proposals: ProposalStore
-  applier: ProposalApplier
-}) {
-  const { name, sourcePath } = useStore(scratch)
-  const { dirty, status, error } = useStore(save)
-  // After a file opens, the Milkdown editor lightly normalizes markdown (bullets, trailing newline),
-  // which would otherwise show as spurious unsaved changes. Re-baseline once the load settles.
-  useEffect(() => {
-    if (!sourcePath) return
-    const id = setTimeout(() => save.rebaseline(), 50)
-    return () => clearTimeout(id)
-  }, [sourcePath, save])
-  const onClose = () => {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return
-    scratch.hydrate({ name: 'No file open', text: '' })
-  }
+export function ConnectorsViewer({ open }: { open: OpenDocsStore }) {
+  const { tabs, activePath } = useStore(open)
+  const active = open.activeDoc()
   return (
     <div className="connectors-viewer">
-      <div className="connectors-viewer__bar">
-        <span className="connectors-viewer__name" title={sourcePath ?? ''}>{name}</span>
-        <span className="connectors-viewer__status" data-status={status}>{statusHint(dirty, status, error)}</span>
-        <button
-          type="button"
-          className="connectors-viewer__save"
-          disabled={!dirty || status === 'saving'}
-          onClick={() => void save.save()}
-        >
-          Save
-        </button>
-        {sourcePath && (
-          <button type="button" className="connectors-viewer__close" aria-label="Close file" onClick={onClose}>✕</button>
-        )}
+      <div className="connectors-viewer__tabs" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.path}
+            type="button"
+            role="tab"
+            aria-selected={t.path === activePath}
+            className={`connectors-tab${t.path === activePath ? ' connectors-tab--active' : ''}`}
+            onClick={() => open.activate(t.path)}
+          >
+            {t.name}{t.dirty ? ' •' : ''}
+            <span
+              className="connectors-tab__close"
+              aria-label={`close ${t.name}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (t.dirty && !window.confirm('Discard unsaved changes?')) return
+                open.close(t.path)
+              }}
+            >✕</span>
+          </button>
+        ))}
+        {tabs.length === 0 && <span className="connectors-viewer__empty">No file open</span>}
       </div>
-      <div className="connectors-viewer__body">
-        <DocEditorPanel store={scratch} proposals={proposals} applier={applier} />
-      </div>
+      {active && (
+        <div className="connectors-viewer__body">
+          <SaveBar open={open} />
+          <DocEditorPanel store={active.doc} proposals={proposals} applier={applier} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SaveBar({ open }: { open: OpenDocsStore }) {
+  const active = open.activeDoc()!
+  const { dirty, status, error } = useStore(active.save)
+  const hint = status === 'saving' ? 'Saving…' : status === 'error' ? `Save failed: ${error ?? ''}` : dirty ? 'Unsaved changes' : status === 'saved' ? 'Saved' : ''
+  return (
+    <div className="connectors-viewer__bar">
+      <span className="connectors-viewer__status" data-status={status}>{hint}</span>
+      <button type="button" className="connectors-viewer__save" disabled={!dirty || status === 'saving'} onClick={() => void active.save.save()}>Save</button>
     </div>
   )
 }

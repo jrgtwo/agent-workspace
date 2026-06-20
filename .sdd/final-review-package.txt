@@ -1,0 +1,1004 @@
+### NEW (untracked) files in this feature
+?? .sdd/final-review-package.txt
+?? .sdd/task-4-brief.md
+?? .sdd/task-4-report.md
+?? .sdd/task-5-brief.md
+?? .sdd/task-5-diff.txt
+?? .sdd/task-5-report.md
+?? .sdd/task-6-brief.md
+?? .sdd/task-6-diff.txt
+?? .sdd/task-6-report.md
+?? .sdd/task-7-brief.md
+?? .sdd/task-7-report.md
+?? .sdd/task-8-brief.md
+?? .sdd/task-8-diff.txt
+?? .sdd/task-8-report.md
+?? .sdd/task-9a-brief.md
+?? .sdd/task-9a-diff.txt
+?? .sdd/task-9a-report.md
+?? .sdd/task-9b-brief.md
+?? .sdd/task-9b-diff.txt
+?? .sdd/task-9b-report.md
+?? src/app/services.views.test.ts
+?? src/modules/connectors/connectorsViewerTabs.render.test.tsx
+?? src/modules/connectors/openDocsStore.test.ts
+?? src/modules/connectors/openDocsStore.ts
+?? src/modules/views/AddPanelMenu.tsx
+?? src/modules/views/ViewArea.render.test.tsx
+?? src/modules/views/ViewArea.tsx
+?? src/modules/views/defaultViews.ts
+?? src/modules/views/views.css
+?? src/shell/panelAreaRemove.render.test.tsx
+?? src/shell/workspaceShellViews.render.test.tsx
+
+### git diff --stat (tracked modifications)
+ .sdd/progress.md                                   | 20 ++++-
+ src/App.tsx                                        |  2 +-
+ src/app/services.ts                                | 35 +++++---
+ src/core/layoutStore.test.ts                       | 40 ++++++++-
+ src/core/layoutStore.ts                            | 22 ++++-
+ src/features/connectors.ts                         |  8 +-
+ src/modules/connectors/ConnectorsViewer.tsx        | 98 +++++++++++-----------
+ src/modules/connectors/connectors.css              |  6 ++
+ src/modules/connectors/connectorsFs.ts             | 17 ----
+ .../connectorsViewerClose.render.test.tsx          | 65 +++++++-------
+ .../connectors/connectorsViewerModule.test.tsx     | 18 ++--
+ src/modules/connectors/connectorsViewerModule.tsx  | 16 +---
+ .../connectorsViewerSave.render.test.tsx           | 26 +++---
+ src/modules/connectors/openInViewerTool.test.ts    | 27 +++---
+ src/modules/connectors/openInViewerTool.ts         | 19 ++---
+ src/shell/FeatureRail.tsx                          | 22 +++--
+ src/shell/PanelArea.tsx                            | 18 ++--
+ src/shell/WorkspaceShell.tsx                       | 64 ++++++++++++--
+ src/shell/featureRail.css                          |  4 +-
+ src/shell/panelArea.css                            |  8 ++
+ 20 files changed, 337 insertions(+), 198 deletions(-)
+
+### FULL git diff (tracked modifications)
+diff --git a/.sdd/progress.md b/.sdd/progress.md
+index f9008b9..cdc2f3d 100644
+--- a/.sdd/progress.md
++++ b/.sdd/progress.md
+@@ -9,4 +9,22 @@ Commit cadence: batch per phase boundary (P1 = T1-3).
+   - MINOR (defer to final review): no explicit dedup test for modulesForLayout (a layout with the same moduleId twice → module once). Logic is correct; test gap only.
+ - Task 3 (ViewsStore): complete, review clean. Files: src/modules/views/viewsStore.ts(+.test.ts). Storage import path corrected to ../../core/storage/storage. UNCOMMITTED.
+   - MINOR (defer to final review): duplicateView returns source id on unknown id (defensible no-op; consider undefined/throw or a comment).
+-- PHASE 1 COMPLETE (T1-T3). Awaiting user batch commit before Phase 2.
++- PHASE 1 COMPLETE (T1-T3). User commit prompted.
++- Task 4 (OpenDocsStore): complete, review clean. Files: src/modules/connectors/openDocsStore.ts(+.test.ts). UNCOMMITTED.
++  - MINORs (defer to final review): (a) open() concurrent-same-path race (UI serializes, low risk); (b) no test for closing an inactive tab; (c) read failure (r.ok=false) returns silently with no error signal.
++- Task 5 (tabbed viewer + connectors rewire): complete, review clean. 10 files (ConnectorsViewer rewrite, connectorsViewerModule(open), openInViewerTool({open}), connectorsFs (removed openFileIntoViewer), features/connectors.ts, services.ts, 4 migrated tests + 1 new tabs test). Full suite 524/525 (pre-existing fail only), tsc clean. CSS token: --text-muted. UNCOMMITTED.
++  - MINOR (fix in final-review sweep T10): orphaned CSS rules in connectors.css — .connectors-viewer__name, .connectors-viewer__close, .connectors-viewer__close:hover (dead after rewrite).
++- PHASE 2 COMPLETE (T4-T5). User commit prompted. (Per-task diffs from here scoped with `git diff -- <files>`.)
++- Task 6 (LayoutStore add/remove): complete, review clean after 1 fix. addPanel/removePanelById in src/core/layoutStore.ts + 5 tests (12/12). Fixed Important: phantom-notify guard for absent id on remove (+ regression test); moved test imports to top. tsc clean. UNCOMMITTED.
++- PHASE 3 COMPLETE (T6).
++- ORDER CHANGE: doing Task 8 (PanelArea onRemovePanel) BEFORE Task 7 (ViewArea), because ViewArea passes onRemovePanel to PanelArea (must exist first for tsc).
++- Task 8 (PanelArea remove control): complete, review clean. onRemovePanel? threaded; ✕ button when draggable&&onRemove; --text-muted/--text tokens. panelAreaRemove 1/1, PanelArea 3/3, tsc clean. UNCOMMITTED.
++  - MINORs (defer): redundant margin-left on .panel-frame__remove (cosmetic); single-panel branch threading untested.
++- Task 7 (ViewArea + AddPanelMenu): complete, review clean. 4 new files (ViewArea.tsx, AddPanelMenu.tsx, views.css, ViewArea.render.test.tsx). All 6 CSS tokens real. 1/1 test, tsc clean. UNCOMMITTED.
++  - MINORs (defer): add-menu has no outside-click/keyboard dismiss (a11y follow-up); manifest.layout passed to PanelArea is decorative (PanelArea reads the store itself) — pre-existing quirk.
++- PHASE 3 COMPLETE (T6). Phase 4 in progress: T8 done, T7 done. Remaining: T9 (split into 9a services + 9b shell).
++- NOTE for T9a: registry keys MUST equal each module's `.id`. Memory module's real id discovered. Default views only use 3 known ids; memory registry-only.
++- Task 9a (services registry+ViewsStore): complete, review clean (no issues). defaultViews.ts; services.ts wires registry (reusing connectorsFeature.modules + memoryModule) + ViewsStore + persist scope 'views' + AppServices. services.views test. 532 pass/1 known fail. UNCOMMITTED.
++- Task 9b (shell+rail+App): complete, review clean. WorkspaceShell branches Legacy/Composable (optional props); FeatureRail Views section (aria-label); per-view LayoutStore ref→viewsStore.updateLayout; App passes props. workspaceShellViews test green; existing shell/board green; tsc clean. UNCOMMITTED.
++  - MINORs (defer/final): new-view default panel hardcoded connectors-tree (per spec); ViewsStore.activeId unused by shell (reload lands on first feature, not last view) — v1-acceptable.
++- ALL IMPLEMENTATION TASKS T1-T9 COMPLETE. Feature built end-to-end. Next: T10 = final whole-branch review (opus) + Minor-cleanup fix sweep (incl. orphaned connectors.css rules from T5) + docs + browser-verify checklist for user.
+diff --git a/src/App.tsx b/src/App.tsx
+index 84d2acc..48ed0aa 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -18,5 +18,5 @@ export default function App() {
+       </div>
+     )
+   }
+-  return <WorkspaceShell features={services.features} theme={services.theme} layoutStores={services.layoutStores} proposals={services.proposals} applier={services.applier} />
++  return <WorkspaceShell features={services.features} theme={services.theme} layoutStores={services.layoutStores} proposals={services.proposals} applier={services.applier} viewsStore={services.viewsStore} registry={services.registry} />
+ }
+diff --git a/src/app/services.ts b/src/app/services.ts
+index 8dc8dcb..0fad541 100644
+--- a/src/app/services.ts
++++ b/src/app/services.ts
+@@ -49,11 +49,13 @@ import { McpClient } from '../core/mcp/mcpClient'
+ import { McpStore } from '../core/mcp/mcpStore'
+ import { toToolDefs } from '../core/mcp/mcpAdapter'
+ import { createOpenInViewerTool } from '../modules/connectors/openInViewerTool'
+-import { ConnectorsSaveStore } from '../modules/connectors/connectorsSaveStore'
+ import { ConnectorsTreeStore } from '../modules/connectors/connectorsTreeStore'
+-import { openFileIntoViewer } from '../modules/connectors/connectorsFs'
++import { OpenDocsStore } from '../modules/connectors/openDocsStore'
+ import { describeConnectorsContext } from '../modules/connectors/context'
+ import { createConnectorsFeature } from '../features/connectors'
++import { buildRegistry, type PanelType, type PanelRegistry } from '../core/panelRegistry'
++import { ViewsStore } from '../modules/views/viewsStore'
++import { DEFAULT_VIEWS } from '../modules/views/defaultViews'
+ import { createStorage } from '../core/storage/storage'
+ import { persistState } from '../core/storage/persistState'
+ import type { StorageBackend } from '../core/storage/types'
+@@ -185,6 +187,8 @@ export interface AppServices {
+   research: ResearchRegistry
+   geo: GeoRegistry
+   mcp: McpStore
++  registry: PanelRegistry
++  viewsStore: ViewsStore
+ }
+ 
+ export interface CreateServicesOpts {
+@@ -342,12 +346,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
+   const connectorsRegistry = new Registry()
+   const connectorsEngine = new AgentEngine(client, connectorsRegistry, broker, 'connectors-chat')
+   connectorsRegistry.register(memoryModule.tools) // memory is always available
+-  // Private scratch doc the connector agent fills via open_in_viewer; shown in the viewer pane.
+-  // Transient (no persistence) and separate from the Notes document library.
+-  const connectorsScratch = new DocEditorStore('No file open')
+-  connectorsRegistry.register([createOpenInViewerTool({ client: mcpClient, scratch: connectorsScratch })])
+-  // User-driven save of edits back to the source file (the Save click is the authorization).
+-  const connectorsSave = new ConnectorsSaveStore({ client: mcpClient, scratch: connectorsScratch })
++  // OpenDocsStore owns multi-tab open docs for the connectors viewer (transient, no persistence).
++  const openDocs = new OpenDocsStore(mcpClient)
++  connectorsRegistry.register([createOpenInViewerTool({ open: openDocs })])
+   // File-tree browse: human-driven, so it reads the bridge directly (no broker prompt), like Save.
+   const connectorsTree = new ConnectorsTreeStore({ client: mcpClient })
+   void connectorsTree.load() // resilient: errors land in tree state, app still boots
+@@ -366,12 +367,24 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
+   connectorsEngine.setContextProvider(() => describeConnectorsContext(mcpStore))
+   const connectorsDraft = new ComposerDraftStore()
+   const connectorsFeature = createConnectorsFeature({
+-    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, scratch: connectorsScratch, save: connectorsSave,
++    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, open: openDocs,
+     tree: connectorsTree,
+-    onOpenFile: (path: string) => void openFileIntoViewer(mcpClient, connectorsScratch, path),
++    onOpenFile: (path: string) => void openDocs.open(path),
+     onTreeRefresh: () => void connectorsTree.load(),
+   })
+ 
++  // Composable Views: a registry of panel types (reusing the connectors feature's own module
++  // instances + the shared memory module) feeds the ViewsStore (seeded with the built-in views).
++  const connectorsModules = new Map(connectorsFeature.modules.map((m) => [m.id, m]))
++  const panelRegistry = buildRegistry([
++    { id: 'connectors-tree', label: 'File tree', icon: '📁', module: connectorsModules.get('connectors-tree')! },
++    { id: 'connectors-viewer', label: 'Document viewer', icon: '📄', module: connectorsModules.get('connectors-viewer')! },
++    { id: 'ai-chat', label: 'AI chat', icon: '💬', module: connectorsModules.get('ai-chat')! },
++    { id: memoryModule.id, label: 'Memory', icon: '🧠', module: memoryModule },
++  ] as PanelType[])
++  const viewsStore = new ViewsStore(DEFAULT_VIEWS, panelRegistry)
++  await persistState(viewsStore, storage.scope('views'), 'all')
++
+   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
+   const orchestratorRegistry = new Registry()
+   const orchestratorEngine = new AgentEngine(client, orchestratorRegistry, broker, 'orchestrator', 10)
+@@ -481,5 +494,5 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
+     layoutStores.set(feature.id, ls)
+   }
+ 
+-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore }
++  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore, registry: panelRegistry, viewsStore }
+ }
+diff --git a/src/core/layoutStore.test.ts b/src/core/layoutStore.test.ts
+index 692c602..d73dc38 100644
+--- a/src/core/layoutStore.test.ts
++++ b/src/core/layoutStore.test.ts
+@@ -1,6 +1,7 @@
+ import { describe, it, expect } from 'vitest'
+-import { reconcile } from './layoutStore'
++import { LayoutStore, reconcile } from './layoutStore'
+ import type { LayoutNode } from './types'
++import { collectModuleIds } from './layoutTree'
+ 
+ const def: LayoutNode = { type: 'split', direction: 'horizontal', children: [
+   { type: 'panel', moduleId: 'explorer' },
+@@ -36,7 +37,42 @@ function findIn(n: LayoutNode, id: string): boolean {
+   return n.type === 'panel' ? n.moduleId === id : n.children.some((c) => findIn(c, id))
+ }
+ 
+-import { LayoutStore } from './layoutStore'
++const base: LayoutNode = { type: 'split', direction: 'horizontal', children: [
++  { type: 'panel', moduleId: 'a', draggable: true }, { type: 'panel', moduleId: 'b', draggable: true },
++] }
++
++describe('LayoutStore add/remove', () => {
++  it('adds a new panel', () => {
++    const s = new LayoutStore(base)
++    s.addPanel('c')
++    expect(collectModuleIds(s.getState().layout).sort()).toEqual(['a', 'b', 'c'])
++  })
++  it('is a no-op when the panel already exists', () => {
++    const s = new LayoutStore(base)
++    const before = s.getState().layout
++    s.addPanel('a')
++    expect(s.getState().layout).toBe(before)
++  })
++  it('removes a panel', () => {
++    const s = new LayoutStore(base)
++    s.removePanelById('b')
++    expect(collectModuleIds(s.getState().layout)).toEqual(['a'])
++  })
++  it('will not remove the last panel', () => {
++    const s = new LayoutStore({ type: 'panel', moduleId: 'a', draggable: true })
++    const before = s.getState().layout
++    s.removePanelById('a')
++    expect(s.getState().layout).toBe(before)
++  })
++  it('does not notify when removing an id that is not present', () => {
++    const s = new LayoutStore(base)
++    let notified = false
++    s.subscribe(() => { notified = true })
++    s.removePanelById('zzz')
++    expect(notified).toBe(false)
++    expect(s.getState().layout).toBe(base)
++  })
++})
+ 
+ const dflt: LayoutNode = { type: 'split', direction: 'horizontal', children: [
+   { type: 'panel', moduleId: 'explorer' },
+diff --git a/src/core/layoutStore.ts b/src/core/layoutStore.ts
+index e64b16d..c5cd4b3 100644
+--- a/src/core/layoutStore.ts
++++ b/src/core/layoutStore.ts
+@@ -1,6 +1,6 @@
+ import { Emitter } from './emitter'
+ import type { LayoutNode } from './types'
+-import { collectModuleIds, move as moveNode, type Zone } from './layoutTree'
++import { collectModuleIds, insertRelative, move as moveNode, normalize, removePanel, type Zone } from './layoutTree'
+ 
+ function sameModuleSet(a: LayoutNode, b: LayoutNode): boolean {
+   const sa = new Set(collectModuleIds(a))
+@@ -53,6 +53,26 @@ export class LayoutStore extends Emitter<LayoutState> {
+     this.notify()
+   }
+ 
++  addPanel(moduleId: string): void {
++    const ids = collectModuleIds(this.state.layout)
++    if (ids.includes(moduleId)) return
++    const anchor = ids[ids.length - 1]
++    const moved: LayoutNode = { type: 'panel', moduleId, draggable: true }
++    const next = normalize(insertRelative(this.state.layout, anchor, moved, 'right'))
++    this.state = { layout: next }
++    this.notify()
++  }
++
++  removePanelById(moduleId: string): void {
++    const ids = collectModuleIds(this.state.layout)
++    if (ids.length <= 1) return
++    if (!ids.includes(moduleId)) return
++    const next = removePanel(this.state.layout, moduleId)
++    if (!next) return
++    this.state = { layout: next }
++    this.notify()
++  }
++
+   reset(): void {
+     this.state = { layout: this.def }
+     this.notify()
+diff --git a/src/features/connectors.ts b/src/features/connectors.ts
+index 59d672a..bdb96a2 100644
+--- a/src/features/connectors.ts
++++ b/src/features/connectors.ts
+@@ -8,8 +8,7 @@ import type { AgentEngine } from '../core/agentEngine'
+ import type { PermissionBroker } from '../core/permissionBroker'
+ import type { AgentAccentStore } from '../modules/aiChat/agentAccentStore'
+ import type { ComposerDraftStore } from '../modules/aiChat/composer/composerDraftStore'
+-import type { DocEditorStore } from '../modules/docEditor/docEditorStore'
+-import type { ConnectorsSaveStore } from '../modules/connectors/connectorsSaveStore'
++import type { OpenDocsStore } from '../modules/connectors/openDocsStore'
+ import type { ConnectorsTreeStore } from '../modules/connectors/connectorsTreeStore'
+ 
+ export function createConnectorsFeature(deps: {
+@@ -19,8 +18,7 @@ export function createConnectorsFeature(deps: {
+   broker: PermissionBroker
+   accent: AgentAccentStore
+   draft: ComposerDraftStore
+-  scratch: DocEditorStore
+-  save: ConnectorsSaveStore
++  open: OpenDocsStore
+   tree: ConnectorsTreeStore
+   onOpenFile: (path: string) => void
+   onTreeRefresh: () => void
+@@ -28,7 +26,7 @@ export function createConnectorsFeature(deps: {
+   const filetree = createConnectorsTreeModule(deps.tree, deps.onOpenFile, deps.onTreeRefresh)
+   const panel = createConnectorsModule(deps.mcp, deps.onRefresh, deps.draft)
+   const chat = createAiChatModule(deps.engine, deps.broker, deps.accent, deps.draft) // the Connectors feature's own agent
+-  const viewer = createConnectorsViewerModule(deps.scratch, deps.save) // shows + saves files the agent opens
++  const viewer = createConnectorsViewerModule(deps.open) // shows + saves files the agent opens
+   return {
+     id: 'connectors',
+     name: 'Connectors',
+diff --git a/src/modules/connectors/ConnectorsViewer.tsx b/src/modules/connectors/ConnectorsViewer.tsx
+index ab37ac3..db5419c 100644
+--- a/src/modules/connectors/ConnectorsViewer.tsx
++++ b/src/modules/connectors/ConnectorsViewer.tsx
+@@ -1,59 +1,61 @@
+-import { useEffect } from 'react'
++// src/modules/connectors/ConnectorsViewer.tsx
+ import { useStore } from '../../core/emitter'
+-import type { DocEditorStore } from '../docEditor/docEditorStore'
+ import { DocEditorPanel } from '../docEditor/docEditorModule'
+-import type { ProposalStore } from '../../core/proposalStore'
+-import type { ProposalApplier } from '../../core/proposalApplier'
+-import type { ConnectorsSaveStore, SaveStatus } from './connectorsSaveStore'
++import { ProposalStore } from '../../core/proposalStore'
++import { ProposalApplier } from '../../core/proposalApplier'
++import type { OpenDocsStore } from './openDocsStore'
+ import './connectors.css'
+ 
+-function statusHint(dirty: boolean, status: SaveStatus, error?: string): string {
+-  if (status === 'saving') return 'Saving…'
+-  if (status === 'error') return error ? `Save failed: ${error}` : 'Save failed'
+-  if (dirty) return 'Unsaved changes'
+-  if (status === 'saved') return 'Saved'
+-  return ''
+-}
++const proposals = new ProposalStore(() => 'connectors-viewer-noop')
++const applier = new ProposalApplier(proposals)
+ 
+-export function ConnectorsViewer({ scratch, save, proposals, applier }: {
+-  scratch: DocEditorStore
+-  save: ConnectorsSaveStore
+-  proposals: ProposalStore
+-  applier: ProposalApplier
+-}) {
+-  const { name, sourcePath } = useStore(scratch)
+-  const { dirty, status, error } = useStore(save)
+-  // After a file opens, the Milkdown editor lightly normalizes markdown (bullets, trailing newline),
+-  // which would otherwise show as spurious unsaved changes. Re-baseline once the load settles.
+-  useEffect(() => {
+-    if (!sourcePath) return
+-    const id = setTimeout(() => save.rebaseline(), 50)
+-    return () => clearTimeout(id)
+-  }, [sourcePath, save])
+-  const onClose = () => {
+-    if (dirty && !window.confirm('Discard unsaved changes?')) return
+-    scratch.hydrate({ name: 'No file open', text: '' })
+-  }
++export function ConnectorsViewer({ open }: { open: OpenDocsStore }) {
++  const { tabs, activePath } = useStore(open)
++  const active = open.activeDoc()
+   return (
+     <div className="connectors-viewer">
+-      <div className="connectors-viewer__bar">
+-        <span className="connectors-viewer__name" title={sourcePath ?? ''}>{name}</span>
+-        <span className="connectors-viewer__status" data-status={status}>{statusHint(dirty, status, error)}</span>
+-        <button
+-          type="button"
+-          className="connectors-viewer__save"
+-          disabled={!dirty || status === 'saving'}
+-          onClick={() => void save.save()}
+-        >
+-          Save
+-        </button>
+-        {sourcePath && (
+-          <button type="button" className="connectors-viewer__close" aria-label="Close file" onClick={onClose}>✕</button>
+-        )}
+-      </div>
+-      <div className="connectors-viewer__body">
+-        <DocEditorPanel store={scratch} proposals={proposals} applier={applier} />
++      <div className="connectors-viewer__tabs" role="tablist">
++        {tabs.map((t) => (
++          <button
++            key={t.path}
++            type="button"
++            role="tab"
++            aria-selected={t.path === activePath}
++            className={`connectors-tab${t.path === activePath ? ' connectors-tab--active' : ''}`}
++            onClick={() => open.activate(t.path)}
++          >
++            {t.name}{t.dirty ? ' •' : ''}
++            <span
++              className="connectors-tab__close"
++              aria-label={`close ${t.name}`}
++              onClick={(e) => {
++                e.stopPropagation()
++                if (t.dirty && !window.confirm('Discard unsaved changes?')) return
++                open.close(t.path)
++              }}
++            >✕</span>
++          </button>
++        ))}
++        {tabs.length === 0 && <span className="connectors-viewer__empty">No file open</span>}
+       </div>
++      {active && (
++        <div className="connectors-viewer__body">
++          <SaveBar open={open} />
++          <DocEditorPanel store={active.doc} proposals={proposals} applier={applier} />
++        </div>
++      )}
++    </div>
++  )
++}
++
++function SaveBar({ open }: { open: OpenDocsStore }) {
++  const active = open.activeDoc()!
++  const { dirty, status, error } = useStore(active.save)
++  const hint = status === 'saving' ? 'Saving…' : status === 'error' ? `Save failed: ${error ?? ''}` : dirty ? 'Unsaved changes' : status === 'saved' ? 'Saved' : ''
++  return (
++    <div className="connectors-viewer__bar">
++      <span className="connectors-viewer__status" data-status={status}>{hint}</span>
++      <button type="button" className="connectors-viewer__save" disabled={!dirty || status === 'saving'} onClick={() => void active.save.save()}>Save</button>
+     </div>
+   )
+ }
+diff --git a/src/modules/connectors/connectors.css b/src/modules/connectors/connectors.css
+index b666a26..31cd7d5 100644
+--- a/src/modules/connectors/connectors.css
++++ b/src/modules/connectors/connectors.css
+@@ -16,6 +16,12 @@
+ .connectors__empty { color: var(--text-muted); padding: 24px; text-align: center; }
+ 
+ .connectors-viewer { display: flex; flex-direction: column; height: 100%; background: var(--surface); color: var(--text); }
++.connectors-viewer__tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; }
++.connectors-tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: none; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
++.connectors-tab--active { color: var(--text); border-bottom: 2px solid var(--accent); }
++.connectors-tab__close { opacity: .5; }
++.connectors-tab__close:hover { opacity: 1; }
++.connectors-viewer__empty { padding: 6px 10px; color: var(--text-muted); }
+ .connectors-viewer__bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+ .connectors-viewer__name { font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+ .connectors-viewer__status { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+diff --git a/src/modules/connectors/connectorsFs.ts b/src/modules/connectors/connectorsFs.ts
+index 265f2b3..05e3545 100644
+--- a/src/modules/connectors/connectorsFs.ts
++++ b/src/modules/connectors/connectorsFs.ts
+@@ -1,5 +1,4 @@
+ import type { McpClient } from '../../core/mcp/mcpClient'
+-import type { DocEditorStore } from '../docEditor/docEditorStore'
+ 
+ /** Filename from a unix- or windows-style path (no node `path` in the browser). */
+ export function basename(path: string): string {
+@@ -15,19 +14,3 @@ export async function writeFileToDisk(client: McpClient, path: string, content:
+   const r = await client.call('write_file', { path, content })
+   return r.ok ? { ok: true } : { ok: false, error: r.error ?? 'could not write file' }
+ }
+-
+-/**
+- * Read a file through the bridge and load it into the scratch viewer store. Shared by the
+- * broker-gated `open_in_viewer` agent tool and the (direct, human-driven) file-tree click.
+- */
+-export async function openFileIntoViewer(
+-  client: McpClient,
+-  scratch: DocEditorStore,
+-  path: string,
+-): Promise<{ ok: true; name: string; text: string } | { ok: false; error: string }> {
+-  const r = await client.call('read_file', { path })
+-  if (!r.ok) return { ok: false, error: r.error ?? 'could not read file' }
+-  const name = basename(path)
+-  scratch.hydrate({ name, text: r.text, sourcePath: path })
+-  return { ok: true, name, text: r.text }
+-}
+diff --git a/src/modules/connectors/connectorsViewerClose.render.test.tsx b/src/modules/connectors/connectorsViewerClose.render.test.tsx
+index 4823da1..8a22f28 100644
+--- a/src/modules/connectors/connectorsViewerClose.render.test.tsx
++++ b/src/modules/connectors/connectorsViewerClose.render.test.tsx
+@@ -1,52 +1,57 @@
+ import { describe, it, expect, vi, afterEach } from 'vitest'
+-import { render, screen, act, fireEvent } from '@testing-library/react'
++import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+ import type { McpClient } from '../../core/mcp/mcpClient'
+-import { DocEditorStore } from '../docEditor/docEditorStore'
+-import { ConnectorsSaveStore } from './connectorsSaveStore'
++import { OpenDocsStore } from './openDocsStore'
+ import { createConnectorsViewerModule } from './connectorsViewerModule'
+ 
+-const fakeClient = () => ({ call: vi.fn().mockResolvedValue({ ok: true, text: '' }) } as unknown as McpClient)
+-
+-function openViewer(opened: boolean) {
+-  const scratch = new DocEditorStore('No file open')
+-  if (opened) scratch.hydrate({ name: 'notes.md', text: 'hello', sourcePath: '/notes.md' })
+-  const save = new ConnectorsSaveStore({ client: fakeClient(), scratch })
+-  render(createConnectorsViewerModule(scratch, save).render())
+-  return { scratch }
+-}
++const fakeClient = { call: async (_n: string, a: { path: string }) => ({ ok: true, text: '# ' + a.path }) } as unknown as McpClient
+ 
+ describe('connectors viewer Close control', () => {
+   afterEach(() => vi.restoreAllMocks())
+ 
+-  it('hides Close when no file is open', () => {
+-    openViewer(false)
+-    expect(screen.queryByRole('button', { name: /close/i })).toBeNull()
++  it('shows "No file open" when no tabs are open', () => {
++    const open = new OpenDocsStore(fakeClient)
++    render(createConnectorsViewerModule(open).render())
++    expect(screen.getByText(/no file open/i)).toBeInTheDocument()
+   })
+ 
+-  it('clears the viewer when closing a clean file (no confirm)', () => {
++  it('closes a tab when clicking its close button (clean file, no confirm)', async () => {
++    const open = new OpenDocsStore(fakeClient)
++    await open.open('/a.md')
++    await open.open('/b.md')
++    render(createConnectorsViewerModule(open).render())
++
++    await waitFor(() => expect(screen.getByRole('tab', { name: /a\.md/ })).toBeInTheDocument())
++    const closeBtn = screen.getByLabelText('close a.md')
+     const confirm = vi.spyOn(window, 'confirm')
+-    const { scratch } = openViewer(true)
+-    fireEvent.click(screen.getByRole('button', { name: /close/i }))
++    fireEvent.click(closeBtn)
+     expect(confirm).not.toHaveBeenCalled()
+-    expect(scratch.getState().sourcePath).toBeUndefined()
+-    expect(scratch.getState().name).toBe('No file open')
++    expect(open.getState().tabs.find((t) => t.path === '/a.md')).toBeUndefined()
+   })
+ 
+-  it('confirms before discarding unsaved changes; cancel keeps the file', () => {
+-    const { scratch } = openViewer(true)
+-    act(() => { scratch.setText('hello edited') })
++  it('confirms before discarding unsaved changes; cancel keeps the tab', async () => {
++    const open = new OpenDocsStore(fakeClient)
++    await open.open('/a.md')
++    render(createConnectorsViewerModule(open).render())
++
++    await waitFor(() => expect(screen.getByRole('tab', { name: /a\.md/ })).toBeInTheDocument())
++    act(() => { open.activeDoc()!.doc.setText('edited') })
+     vi.spyOn(window, 'confirm').mockReturnValue(false)
+ 
+-    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+-    expect(scratch.getState().sourcePath).toBe('/notes.md') // unchanged
++    fireEvent.click(screen.getByLabelText('close a.md'))
++    expect(open.getState().tabs.find((t) => t.path === '/a.md')).toBeDefined()
+   })
+ 
+-  it('discards unsaved changes when the confirm is accepted', () => {
+-    const { scratch } = openViewer(true)
+-    act(() => { scratch.setText('hello edited') })
++  it('discards unsaved changes when confirm is accepted', async () => {
++    const open = new OpenDocsStore(fakeClient)
++    await open.open('/a.md')
++    render(createConnectorsViewerModule(open).render())
++
++    await waitFor(() => expect(screen.getByRole('tab', { name: /a\.md/ })).toBeInTheDocument())
++    act(() => { open.activeDoc()!.doc.setText('edited') })
+     vi.spyOn(window, 'confirm').mockReturnValue(true)
+ 
+-    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+-    expect(scratch.getState().sourcePath).toBeUndefined()
++    fireEvent.click(screen.getByLabelText('close a.md'))
++    expect(open.getState().tabs.find((t) => t.path === '/a.md')).toBeUndefined()
+   })
+ })
+diff --git a/src/modules/connectors/connectorsViewerModule.test.tsx b/src/modules/connectors/connectorsViewerModule.test.tsx
+index af6cc0f..0a97b07 100644
+--- a/src/modules/connectors/connectorsViewerModule.test.tsx
++++ b/src/modules/connectors/connectorsViewerModule.test.tsx
+@@ -1,20 +1,18 @@
+-import { describe, it, expect, vi } from 'vitest'
++import { describe, it, expect } from 'vitest'
+ import { render, screen } from '@testing-library/react'
+ import type { McpClient } from '../../core/mcp/mcpClient'
+-import { DocEditorStore } from '../docEditor/docEditorStore'
+-import { ConnectorsSaveStore } from './connectorsSaveStore'
++import { OpenDocsStore } from './openDocsStore'
+ import { createConnectorsViewerModule } from './connectorsViewerModule'
+ 
+-const fakeClient = () => ({ call: vi.fn().mockResolvedValue({ ok: true, text: '' }) } as unknown as McpClient)
++const fakeClient = { call: async (_n: string, a: { path: string }) => ({ ok: true, text: '# ' + a.path }) } as unknown as McpClient
+ 
+ describe('connectors viewer module', () => {
+-  it('renders the scratch store contents in the viewer', async () => {
+-    const scratch = new DocEditorStore('README.md', '# Project\n\nsome contents')
+-    const save = new ConnectorsSaveStore({ client: fakeClient(), scratch })
+-    render(createConnectorsViewerModule(scratch, save).render())
++  it('renders open file contents in the viewer', async () => {
++    const open = new OpenDocsStore(fakeClient)
++    await open.open('/docs/README.md')
++    render(createConnectorsViewerModule(open).render())
+ 
+     const editorEl = await screen.findByLabelText('document')
+-    expect(editorEl.textContent).toContain('Project')
+-    expect(editorEl.textContent).toContain('some contents')
++    expect(editorEl.textContent).toContain('/docs/README.md')
+   })
+ })
+diff --git a/src/modules/connectors/connectorsViewerModule.tsx b/src/modules/connectors/connectorsViewerModule.tsx
+index 529e549..d8373c5 100644
+--- a/src/modules/connectors/connectorsViewerModule.tsx
++++ b/src/modules/connectors/connectorsViewerModule.tsx
+@@ -1,24 +1,14 @@
+ import type { WorkspaceModule } from '../../core/types'
+-import type { DocEditorStore } from '../docEditor/docEditorStore'
+-import { ProposalStore } from '../../core/proposalStore'
+-import { ProposalApplier } from '../../core/proposalApplier'
+-import type { ConnectorsSaveStore } from './connectorsSaveStore'
++import type { OpenDocsStore } from './openDocsStore'
+ import { ConnectorsViewer } from './ConnectorsViewer'
+ 
+-/**
+- * Read/edit pane for the Connectors feature, bound to a private scratch DocEditorStore that the
+- * `open_in_viewer` tool fills. Reuses the document editor render with its own empty proposal store
+- * (Notes edit-proposals never leak in). A Save bar writes the user's edits back to the source file.
+- */
+-export function createConnectorsViewerModule(scratch: DocEditorStore, save: ConnectorsSaveStore): WorkspaceModule {
+-  const proposals = new ProposalStore(() => 'connectors-viewer-noop')
+-  const applier = new ProposalApplier(proposals)
++export function createConnectorsViewerModule(open: OpenDocsStore): WorkspaceModule {
+   return {
+     id: 'connectors-viewer',
+     title: 'Viewer',
+     locality: 'LOCAL',
+     tools: [],
+     layoutHints: { defaultSize: 34, collapsible: false, minSize: 20 },
+-    render: () => <ConnectorsViewer scratch={scratch} save={save} proposals={proposals} applier={applier} />,
++    render: () => <ConnectorsViewer open={open} />,
+   }
+ }
+diff --git a/src/modules/connectors/connectorsViewerSave.render.test.tsx b/src/modules/connectors/connectorsViewerSave.render.test.tsx
+index 630a8ba..9b06a2d 100644
+--- a/src/modules/connectors/connectorsViewerSave.render.test.tsx
++++ b/src/modules/connectors/connectorsViewerSave.render.test.tsx
+@@ -1,27 +1,25 @@
+ import { describe, it, expect, vi } from 'vitest'
+-import { render, screen, act, fireEvent } from '@testing-library/react'
++import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
+ import type { McpClient } from '../../core/mcp/mcpClient'
+-import { DocEditorStore } from '../docEditor/docEditorStore'
+-import { ConnectorsSaveStore } from './connectorsSaveStore'
++import { OpenDocsStore } from './openDocsStore'
+ import { createConnectorsViewerModule } from './connectorsViewerModule'
+ 
+-function fakeClient() {
+-  return { call: vi.fn().mockResolvedValue({ ok: true, text: '' }) } as unknown as McpClient
+-}
++const fakeClient = { call: async (_n: string, a: { path: string }) => ({ ok: true, text: '# ' + a.path }) } as unknown as McpClient
+ 
+ describe('connectors viewer Save control', () => {
+-  it('disables Save when there are no unsaved changes, enables it after an edit, and saves on click', () => {
+-    const scratch = new DocEditorStore('No file open')
+-    scratch.hydrate({ name: 'notes.md', text: 'hello', sourcePath: '/notes.md' })
+-    const save = new ConnectorsSaveStore({ client: fakeClient(), scratch })
+-    const saveSpy = vi.spyOn(save, 'save').mockResolvedValue()
+-
+-    render(createConnectorsViewerModule(scratch, save).render())
++  it('disables Save when there are no unsaved changes, enables it after an edit, and saves on click', async () => {
++    const open = new OpenDocsStore(fakeClient)
++    await open.open('/notes.md')
++    render(createConnectorsViewerModule(open).render())
+ 
++    await waitFor(() => expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument())
+     const button = screen.getByRole('button', { name: /save/i })
+     expect(button).toBeDisabled()
+ 
+-    act(() => { scratch.setText('hello world') })
++    const activeDoc = open.activeDoc()!
++    const saveSpy = vi.spyOn(activeDoc.save, 'save').mockResolvedValue()
++
++    act(() => { activeDoc.doc.setText('hello world') })
+     expect(button).toBeEnabled()
+ 
+     fireEvent.click(button)
+diff --git a/src/modules/connectors/openInViewerTool.test.ts b/src/modules/connectors/openInViewerTool.test.ts
+index 4e9581a..61b02ef 100644
+--- a/src/modules/connectors/openInViewerTool.test.ts
++++ b/src/modules/connectors/openInViewerTool.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, it, expect, vi } from 'vitest'
+ import type { McpClient } from '../../core/mcp/mcpClient'
+-import { DocEditorStore } from '../docEditor/docEditorStore'
++import { OpenDocsStore } from './openDocsStore'
+ import { createOpenInViewerTool } from './openInViewerTool'
+ 
+ function fakeClient(result: { ok: boolean; text?: string; error?: string }) {
+@@ -8,35 +8,36 @@ function fakeClient(result: { ok: boolean; text?: string; error?: string }) {
+ }
+ 
+ describe('open_in_viewer tool', () => {
+-  it('reads the file via the bridge and hydrates the scratch store', async () => {
++  it('opens the file into a tab and returns its contents', async () => {
+     const client = fakeClient({ ok: true, text: '# README\nhello' })
+-    const scratch = new DocEditorStore('No file open')
+-    const tool = createOpenInViewerTool({ client, scratch })
++    const open = new OpenDocsStore(client)
++    const tool = createOpenInViewerTool({ open })
+ 
+     const res = await tool.handler({ path: '/docs/sub/README.md' })
+ 
+     expect(client.call).toHaveBeenCalledWith('read_file', { path: '/docs/sub/README.md' })
+-    // viewer now shows the file: basename as the title, contents as text, source path retained
+-    expect(scratch.getState()).toEqual({ name: 'README.md', text: '# README\nhello', sourcePath: '/docs/sub/README.md' })
+-    // contents are returned so the agent has them in-context too
++    expect(open.getState().tabs).toHaveLength(1)
++    expect(open.getState().tabs[0]).toMatchObject({ path: '/docs/sub/README.md', name: 'README.md' })
+     expect(res).toEqual({ ok: true, name: 'README.md', text: '# README\nhello' })
+   })
+ 
+   it('is permission-gated as a LOCAL read naming the path', () => {
+-    const tool = createOpenInViewerTool({ client: fakeClient({ ok: true }), scratch: new DocEditorStore('x') })
++    const client = fakeClient({ ok: true })
++    const open = new OpenDocsStore(client)
++    const tool = createOpenInViewerTool({ open })
+     expect(tool.name).toBe('open_in_viewer')
+     expect(tool.permission).toMatchObject({ kind: 'read', locality: 'LOCAL' })
+     expect(tool.permission?.describe({ path: 'a.md' })).toMatch(/a\.md/)
+   })
+ 
+-  it('reports an error and leaves the viewer untouched when the read fails', async () => {
++  it('returns an error when the read fails (no tab opened)', async () => {
+     const client = fakeClient({ ok: false, error: 'no such file' })
+-    const scratch = new DocEditorStore('No file open')
+-    const tool = createOpenInViewerTool({ client, scratch })
++    const open = new OpenDocsStore(client)
++    const tool = createOpenInViewerTool({ open })
+ 
+     const res = await tool.handler({ path: '/missing.md' })
+ 
+-    expect(res).toEqual({ ok: false, error: 'no such file' })
+-    expect(scratch.getState()).toEqual({ name: 'No file open', text: '' })
++    expect(res).toEqual({ ok: false, error: 'could not open file' })
++    expect(open.getState().tabs).toHaveLength(0)
+   })
+ })
+diff --git a/src/modules/connectors/openInViewerTool.ts b/src/modules/connectors/openInViewerTool.ts
+index 95333b2..e5b2045 100644
+--- a/src/modules/connectors/openInViewerTool.ts
++++ b/src/modules/connectors/openInViewerTool.ts
+@@ -1,14 +1,7 @@
+ import type { ToolDef } from '../../core/types'
+-import type { McpClient } from '../../core/mcp/mcpClient'
+-import type { DocEditorStore } from '../docEditor/docEditorStore'
+-import { openFileIntoViewer } from './connectorsFs'
++import type { OpenDocsStore } from './openDocsStore'
+ 
+-/**
+- * Lets the connector agent open a disk file into the Connectors scratch viewer: it reads the file
+- * through the MCP bridge and hydrates the scratch store. `sourcePath` is retained so write-back to
+- * disk can be added later. Read-only relative to the workspace — it does not touch the library.
+- */
+-export function createOpenInViewerTool(opts: { client: McpClient; scratch: DocEditorStore }): ToolDef {
++export function createOpenInViewerTool(opts: { open: OpenDocsStore }): ToolDef {
+   return {
+     name: 'open_in_viewer',
+     description:
+@@ -26,6 +19,12 @@ export function createOpenInViewerTool(opts: { client: McpClient; scratch: DocEd
+       locality: 'LOCAL',
+       describe: (args: unknown) => `Open "${(args as { path?: string })?.path ?? 'file'}" in the viewer?`,
+     },
+-    handler: (a: { path: string }) => openFileIntoViewer(opts.client, opts.scratch, a.path),
++    handler: async (a: { path: string }) => {
++      await opts.open.open(a.path)
++      const d = opts.open.activeDoc()
++      return d && d.path === a.path
++        ? { ok: true, name: d.name, text: d.doc.getState().text }
++        : { ok: false, error: 'could not open file' }
++    },
+   }
+ }
+diff --git a/src/shell/FeatureRail.tsx b/src/shell/FeatureRail.tsx
+index d8e3c75..8c492de 100644
+--- a/src/shell/FeatureRail.tsx
++++ b/src/shell/FeatureRail.tsx
+@@ -1,25 +1,29 @@
+ import './featureRail.css'
+ import type { FeatureManifest } from '../core/types'
++import type { ViewDef } from '../modules/views/viewsStore'
+ 
+-export function FeatureRail({ features, activeId, onSelect }: {
++export function FeatureRail({ features, views = [], activeId, onSelect, onNewView }: {
+   features: FeatureManifest[]
++  views?: ViewDef[]
+   activeId: string
+   onSelect: (id: string) => void
++  onNewView?: () => void
+ }) {
+   return (
+     <div className="rail">
+       <div className="rail__features">
+         {features.map((f) => (
+-          <button
+-            key={f.id}
+-            title={f.name}
+-            onClick={() => onSelect(f.id)}
+-            className={`rail__btn${f.id === activeId ? ' rail__btn--active' : ''}`}
+-          >
+-            {f.icon}
+-          </button>
++          <button key={f.id} title={f.name} onClick={() => onSelect(f.id)} className={`rail__btn${f.id === activeId ? ' rail__btn--active' : ''}`}>{f.icon}</button>
+         ))}
+       </div>
++      {(views.length > 0 || onNewView) && (
++        <div className="rail__views">
++          {views.map((v) => (
++            <button key={v.id} title={v.name} aria-label={v.name} onClick={() => onSelect(v.id)} className={`rail__btn${v.id === activeId ? ' rail__btn--active' : ''}`}>{v.icon}</button>
++          ))}
++          {onNewView && <button title="New view" aria-label="New view" className="rail__btn rail__btn--new" onClick={onNewView}>＋</button>}
++        </div>
++      )}
+     </div>
+   )
+ }
+diff --git a/src/shell/PanelArea.tsx b/src/shell/PanelArea.tsx
+index 5943522..6e5dbeb 100644
+--- a/src/shell/PanelArea.tsx
++++ b/src/shell/PanelArea.tsx
+@@ -6,7 +6,7 @@ import { useStore } from '../core/emitter'
+ import { useDragLayer } from './DragLayer'
+ import './panelArea.css'
+ 
+-function PanelFrame({ module, draggable, onGrip }: { module: WorkspaceModule; draggable?: boolean; onGrip?: (id: string, e: ReactPointerEvent) => void }) {
++function PanelFrame({ module, draggable, onGrip, onRemove }: { module: WorkspaceModule; draggable?: boolean; onGrip?: (id: string, e: ReactPointerEvent) => void; onRemove?: (id: string) => void }) {
+   return (
+     <div className="panel-frame" data-module={module.id}>
+       <div className="panel-frame__header">
+@@ -16,19 +16,23 @@ function PanelFrame({ module, draggable, onGrip }: { module: WorkspaceModule; dr
+         )}
+         <span>{module.title}</span>
+         <span className={`locality locality--${module.locality === 'LOCAL' ? 'local' : 'network'}`}>{module.locality}</span>
++        {draggable && onRemove && (
++          <button type="button" className="panel-frame__remove" aria-label={`remove ${module.title}`}
++            onClick={() => onRemove(module.id)}>✕</button>
++        )}
+       </div>
+       <div className="panel-frame__body">{module.render()}</div>
+     </div>
+   )
+ }
+ 
+-function renderNode(node: LayoutNode, modules: Map<string, WorkspaceModule>, key: string, onGrip: (id: string, e: ReactPointerEvent) => void): JSX.Element {
++function renderNode(node: LayoutNode, modules: Map<string, WorkspaceModule>, key: string, onGrip: (id: string, e: ReactPointerEvent) => void, onRemove?: (id: string) => void): JSX.Element {
+   if (node.type === 'panel') {
+     const mod = modules.get(node.moduleId)
+     if (!mod) return <Panel key={key}><div>Unknown module: {node.moduleId}</div></Panel>
+     return (
+       <Panel key={node.moduleId} defaultSize={node.size ?? mod.layoutHints?.defaultSize} minSize={mod.layoutHints?.minSize} collapsible={node.collapsible ?? mod.layoutHints?.collapsible}>
+-        <div style={{ height: '100%', padding: 4 }}><PanelFrame module={mod} draggable={node.draggable} onGrip={onGrip} /></div>
++        <div style={{ height: '100%', padding: 4 }}><PanelFrame module={mod} draggable={node.draggable} onGrip={onGrip} onRemove={onRemove} /></div>
+       </Panel>
+     )
+   }
+@@ -37,7 +41,7 @@ function renderNode(node: LayoutNode, modules: Map<string, WorkspaceModule>, key
+       <Group orientation={node.direction}>
+         {node.children.map((child, i) => (
+           <FragmentWithHandle key={`${key}-${i}`} isFirst={i === 0} direction={node.direction}>
+-            {renderNode(child, modules, `${key}-${i}`, onGrip)}
++            {renderNode(child, modules, `${key}-${i}`, onGrip, onRemove)}
+           </FragmentWithHandle>
+         ))}
+       </Group>
+@@ -54,7 +58,7 @@ function FragmentWithHandle({ children, isFirst, direction }: { children: JSX.El
+   )
+ }
+ 
+-export function PanelArea({ manifest, layoutStore }: { manifest: FeatureManifest; layoutStore: LayoutStore }) {
++export function PanelArea({ manifest, layoutStore, onRemovePanel }: { manifest: FeatureManifest; layoutStore: LayoutStore; onRemovePanel?: (moduleId: string) => void }) {
+   const { layout } = useStore(layoutStore)
+   const { startDrag, overlay } = useDragLayer(layoutStore)
+   const modules = new Map(manifest.modules.map((m) => [m.id, m]))
+@@ -63,13 +67,13 @@ export function PanelArea({ manifest, layoutStore }: { manifest: FeatureManifest
+       <button type="button" className="panel-area__reset" aria-label="Reset layout" onClick={() => layoutStore.reset()}>⤺ reset layout</button>
+       {layout.type === 'panel' ? (
+         <div style={{ height: '100%', padding: 4 }}>
+-          <PanelFrame module={modules.get(layout.moduleId)!} draggable={layout.draggable} onGrip={startDrag} />
++          <PanelFrame module={modules.get(layout.moduleId)!} draggable={layout.draggable} onGrip={startDrag} onRemove={onRemovePanel} />
+         </div>
+       ) : (
+         <Group orientation={layout.direction}>
+           {layout.children.map((child, i) => (
+             <FragmentWithHandle key={i} isFirst={i === 0} direction={layout.direction}>
+-              {renderNode(child, modules, `${i}`, startDrag)}
++              {renderNode(child, modules, `${i}`, startDrag, onRemovePanel)}
+             </FragmentWithHandle>
+           ))}
+         </Group>
+diff --git a/src/shell/WorkspaceShell.tsx b/src/shell/WorkspaceShell.tsx
+index 62f50fd..9a558ff 100644
+--- a/src/shell/WorkspaceShell.tsx
++++ b/src/shell/WorkspaceShell.tsx
+@@ -1,25 +1,41 @@
+-import { useEffect, useState } from 'react'
++import { useRef, useState, useEffect } from 'react'
+ import type { FeatureManifest } from '../core/types'
+-import type { LayoutStore } from '../core/layoutStore'
++import { LayoutStore } from '../core/layoutStore'
+ import type { ProposalStore } from '../core/proposalStore'
+ import type { ProposalApplier } from '../core/proposalApplier'
++import type { ViewsStore, ViewDef } from '../modules/views/viewsStore'
++import type { PanelRegistry } from '../core/panelRegistry'
+ import { FeatureRail } from './FeatureRail'
+ import { PanelArea } from './PanelArea'
++import { ViewArea } from '../modules/views/ViewArea'
+ import { ChangeApprovalModal } from '../modules/proposals/ChangeApprovalModal'
+ import { useStore } from '../core/emitter'
+ import { applyTheme, type ThemeStore } from '../core/themeStore'
+ 
+-export function WorkspaceShell({ features, theme, layoutStores, proposals, applier }: {
++type ShellProps = {
+   features: FeatureManifest[]
+   theme: ThemeStore
+   layoutStores: Map<string, LayoutStore>
+   proposals?: ProposalStore
+   applier?: ProposalApplier
++  viewsStore?: ViewsStore
++  registry?: PanelRegistry
++}
++
++export function WorkspaceShell({ features, theme, layoutStores, proposals, applier, viewsStore, registry }: ShellProps) {
++  const { theme: themeId } = useStore(theme)
++  useEffect(() => { applyTheme(themeId) }, [themeId])
++  if (viewsStore && registry) {
++    return <ComposableShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} viewsStore={viewsStore} registry={registry} />
++  }
++  return <LegacyShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} />
++}
++
++function LegacyShell({ features, layoutStores, proposals, applier }: {
++  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier
+ }) {
+   const [activeId, setActiveId] = useState(features[0].id)
+   const active = features.find((f) => f.id === activeId) ?? features[0]
+-  const { theme: themeId } = useStore(theme)
+-  useEffect(() => { applyTheme(themeId) }, [themeId])
+   return (
+     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
+       <FeatureRail features={features} activeId={activeId} onSelect={setActiveId} />
+@@ -30,3 +46,41 @@ export function WorkspaceShell({ features, theme, layoutStores, proposals, appli
+     </div>
+   )
+ }
++
++function ComposableShell({ features, layoutStores, proposals, applier, viewsStore, registry }: {
++  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier; viewsStore: ViewsStore; registry: PanelRegistry
++}) {
++  const { views } = useStore(viewsStore)
++  const [activeId, setActiveId] = useState(features[0].id)
++  const activeFeature = features.find((f) => f.id === activeId)
++  const activeView = views.find((v) => v.id === activeId)
++  const viewLayouts = useRef(new Map<string, LayoutStore>())
++  const layoutFor = (view: ViewDef): LayoutStore => {
++    let ls = viewLayouts.current.get(view.id)
++    if (!ls) {
++      ls = new LayoutStore(view.layout)
++      const store = ls
++      store.subscribe(() => viewsStore.updateLayout(view.id, store.getState().layout))
++      viewLayouts.current.set(view.id, store)
++    }
++    return ls
++  }
++  const fallback = activeFeature ?? features[0]
++  return (
++    <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
++      <FeatureRail
++        features={features}
++        views={views}
++        activeId={activeId}
++        onSelect={setActiveId}
++        onNewView={() => setActiveId(viewsStore.createView('New view', { type: 'panel', moduleId: 'connectors-tree', draggable: true }))}
++      />
++      <div style={{ flex: 1, minWidth: 0 }}>
++        {activeView
++          ? <ViewArea view={activeView} viewsStore={viewsStore} registry={registry} layoutStore={layoutFor(activeView)} />
++          : <PanelArea manifest={fallback} layoutStore={layoutStores.get(fallback.id)!} />}
++      </div>
++      {proposals && applier && <ChangeApprovalModal proposals={proposals} applier={applier} />}
++    </div>
++  )
++}
+diff --git a/src/shell/featureRail.css b/src/shell/featureRail.css
+index 7700e3e..ac736e1 100644
+--- a/src/shell/featureRail.css
++++ b/src/shell/featureRail.css
+@@ -21,4 +21,6 @@
+ .rail__btn--active {
+   background: var(--accent-soft); color: var(--accent);
+   border-color: var(--accent); box-shadow: var(--glow-accent);
+-}
+\ No newline at end of file
++}
++.rail__views { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
++.rail__btn--new { opacity: 0.7; }
+\ No newline at end of file
+diff --git a/src/shell/panelArea.css b/src/shell/panelArea.css
+index 88cdb98..37d3ec2 100644
+--- a/src/shell/panelArea.css
++++ b/src/shell/panelArea.css
+@@ -27,6 +27,14 @@
+ }
+ .panel-frame__grip:hover { color: var(--accent); }
+ .panel-frame__grip:active { cursor: grabbing; }
++.panel-frame__remove {
++  margin-left: 6px;
++  background: transparent;
++  border: none;
++  color: var(--text-muted);
++  cursor: pointer;
++}
++.panel-frame__remove:hover { color: var(--text); }
+ .panel-area__reset {
+   position: absolute; top: 6px; right: 10px; z-index: 5;
+   font: inherit; font-size: var(--text-xs); color: var(--text-muted);

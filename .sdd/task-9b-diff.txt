@@ -1,0 +1,161 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 84d2acc..48ed0aa 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -18,5 +18,5 @@ export default function App() {
+       </div>
+     )
+   }
+-  return <WorkspaceShell features={services.features} theme={services.theme} layoutStores={services.layoutStores} proposals={services.proposals} applier={services.applier} />
++  return <WorkspaceShell features={services.features} theme={services.theme} layoutStores={services.layoutStores} proposals={services.proposals} applier={services.applier} viewsStore={services.viewsStore} registry={services.registry} />
+ }
+diff --git a/src/shell/FeatureRail.tsx b/src/shell/FeatureRail.tsx
+index d8e3c75..8c492de 100644
+--- a/src/shell/FeatureRail.tsx
++++ b/src/shell/FeatureRail.tsx
+@@ -1,25 +1,29 @@
+ import './featureRail.css'
+ import type { FeatureManifest } from '../core/types'
++import type { ViewDef } from '../modules/views/viewsStore'
+ 
+-export function FeatureRail({ features, activeId, onSelect }: {
++export function FeatureRail({ features, views = [], activeId, onSelect, onNewView }: {
+   features: FeatureManifest[]
++  views?: ViewDef[]
+   activeId: string
+   onSelect: (id: string) => void
++  onNewView?: () => void
+ }) {
+   return (
+     <div className="rail">
+       <div className="rail__features">
+         {features.map((f) => (
+-          <button
+-            key={f.id}
+-            title={f.name}
+-            onClick={() => onSelect(f.id)}
+-            className={`rail__btn${f.id === activeId ? ' rail__btn--active' : ''}`}
+-          >
+-            {f.icon}
+-          </button>
++          <button key={f.id} title={f.name} onClick={() => onSelect(f.id)} className={`rail__btn${f.id === activeId ? ' rail__btn--active' : ''}`}>{f.icon}</button>
+         ))}
+       </div>
++      {(views.length > 0 || onNewView) && (
++        <div className="rail__views">
++          {views.map((v) => (
++            <button key={v.id} title={v.name} aria-label={v.name} onClick={() => onSelect(v.id)} className={`rail__btn${v.id === activeId ? ' rail__btn--active' : ''}`}>{v.icon}</button>
++          ))}
++          {onNewView && <button title="New view" aria-label="New view" className="rail__btn rail__btn--new" onClick={onNewView}>＋</button>}
++        </div>
++      )}
+     </div>
+   )
+ }
+diff --git a/src/shell/WorkspaceShell.tsx b/src/shell/WorkspaceShell.tsx
+index 62f50fd..9a558ff 100644
+--- a/src/shell/WorkspaceShell.tsx
++++ b/src/shell/WorkspaceShell.tsx
+@@ -1,25 +1,41 @@
+-import { useEffect, useState } from 'react'
++import { useRef, useState, useEffect } from 'react'
+ import type { FeatureManifest } from '../core/types'
+-import type { LayoutStore } from '../core/layoutStore'
++import { LayoutStore } from '../core/layoutStore'
+ import type { ProposalStore } from '../core/proposalStore'
+ import type { ProposalApplier } from '../core/proposalApplier'
++import type { ViewsStore, ViewDef } from '../modules/views/viewsStore'
++import type { PanelRegistry } from '../core/panelRegistry'
+ import { FeatureRail } from './FeatureRail'
+ import { PanelArea } from './PanelArea'
++import { ViewArea } from '../modules/views/ViewArea'
+ import { ChangeApprovalModal } from '../modules/proposals/ChangeApprovalModal'
+ import { useStore } from '../core/emitter'
+ import { applyTheme, type ThemeStore } from '../core/themeStore'
+ 
+-export function WorkspaceShell({ features, theme, layoutStores, proposals, applier }: {
++type ShellProps = {
+   features: FeatureManifest[]
+   theme: ThemeStore
+   layoutStores: Map<string, LayoutStore>
+   proposals?: ProposalStore
+   applier?: ProposalApplier
++  viewsStore?: ViewsStore
++  registry?: PanelRegistry
++}
++
++export function WorkspaceShell({ features, theme, layoutStores, proposals, applier, viewsStore, registry }: ShellProps) {
++  const { theme: themeId } = useStore(theme)
++  useEffect(() => { applyTheme(themeId) }, [themeId])
++  if (viewsStore && registry) {
++    return <ComposableShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} viewsStore={viewsStore} registry={registry} />
++  }
++  return <LegacyShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} />
++}
++
++function LegacyShell({ features, layoutStores, proposals, applier }: {
++  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier
+ }) {
+   const [activeId, setActiveId] = useState(features[0].id)
+   const active = features.find((f) => f.id === activeId) ?? features[0]
+-  const { theme: themeId } = useStore(theme)
+-  useEffect(() => { applyTheme(themeId) }, [themeId])
+   return (
+     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
+       <FeatureRail features={features} activeId={activeId} onSelect={setActiveId} />
+@@ -30,3 +46,41 @@ export function WorkspaceShell({ features, theme, layoutStores, proposals, appli
+     </div>
+   )
+ }
++
++function ComposableShell({ features, layoutStores, proposals, applier, viewsStore, registry }: {
++  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier; viewsStore: ViewsStore; registry: PanelRegistry
++}) {
++  const { views } = useStore(viewsStore)
++  const [activeId, setActiveId] = useState(features[0].id)
++  const activeFeature = features.find((f) => f.id === activeId)
++  const activeView = views.find((v) => v.id === activeId)
++  const viewLayouts = useRef(new Map<string, LayoutStore>())
++  const layoutFor = (view: ViewDef): LayoutStore => {
++    let ls = viewLayouts.current.get(view.id)
++    if (!ls) {
++      ls = new LayoutStore(view.layout)
++      const store = ls
++      store.subscribe(() => viewsStore.updateLayout(view.id, store.getState().layout))
++      viewLayouts.current.set(view.id, store)
++    }
++    return ls
++  }
++  const fallback = activeFeature ?? features[0]
++  return (
++    <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
++      <FeatureRail
++        features={features}
++        views={views}
++        activeId={activeId}
++        onSelect={setActiveId}
++        onNewView={() => setActiveId(viewsStore.createView('New view', { type: 'panel', moduleId: 'connectors-tree', draggable: true }))}
++      />
++      <div style={{ flex: 1, minWidth: 0 }}>
++        {activeView
++          ? <ViewArea view={activeView} viewsStore={viewsStore} registry={registry} layoutStore={layoutFor(activeView)} />
++          : <PanelArea manifest={fallback} layoutStore={layoutStores.get(fallback.id)!} />}
++      </div>
++      {proposals && applier && <ChangeApprovalModal proposals={proposals} applier={applier} />}
++    </div>
++  )
++}
+diff --git a/src/shell/featureRail.css b/src/shell/featureRail.css
+index 7700e3e..ac736e1 100644
+--- a/src/shell/featureRail.css
++++ b/src/shell/featureRail.css
+@@ -21,4 +21,6 @@
+ .rail__btn--active {
+   background: var(--accent-soft); color: var(--accent);
+   border-color: var(--accent); box-shadow: var(--glow-accent);
+-}
+\ No newline at end of file
++}
++.rail__views { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
++.rail__btn--new { opacity: 0.7; }
+\ No newline at end of file

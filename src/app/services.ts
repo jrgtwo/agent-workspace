@@ -49,11 +49,13 @@ import { McpClient } from '../core/mcp/mcpClient'
 import { McpStore } from '../core/mcp/mcpStore'
 import { toToolDefs } from '../core/mcp/mcpAdapter'
 import { createOpenInViewerTool } from '../modules/connectors/openInViewerTool'
-import { ConnectorsSaveStore } from '../modules/connectors/connectorsSaveStore'
 import { ConnectorsTreeStore } from '../modules/connectors/connectorsTreeStore'
-import { openFileIntoViewer } from '../modules/connectors/connectorsFs'
+import { OpenDocsStore } from '../modules/connectors/openDocsStore'
 import { describeConnectorsContext } from '../modules/connectors/context'
 import { createConnectorsFeature } from '../features/connectors'
+import { buildRegistry, type PanelType, type PanelRegistry } from '../core/panelRegistry'
+import { ViewsStore } from '../modules/views/viewsStore'
+import { DEFAULT_VIEWS } from '../modules/views/defaultViews'
 import { createStorage } from '../core/storage/storage'
 import { persistState } from '../core/storage/persistState'
 import type { StorageBackend } from '../core/storage/types'
@@ -185,6 +187,8 @@ export interface AppServices {
   research: ResearchRegistry
   geo: GeoRegistry
   mcp: McpStore
+  registry: PanelRegistry
+  viewsStore: ViewsStore
 }
 
 export interface CreateServicesOpts {
@@ -342,12 +346,9 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const connectorsRegistry = new Registry()
   const connectorsEngine = new AgentEngine(client, connectorsRegistry, broker, 'connectors-chat')
   connectorsRegistry.register(memoryModule.tools) // memory is always available
-  // Private scratch doc the connector agent fills via open_in_viewer; shown in the viewer pane.
-  // Transient (no persistence) and separate from the Notes document library.
-  const connectorsScratch = new DocEditorStore('No file open')
-  connectorsRegistry.register([createOpenInViewerTool({ client: mcpClient, scratch: connectorsScratch })])
-  // User-driven save of edits back to the source file (the Save click is the authorization).
-  const connectorsSave = new ConnectorsSaveStore({ client: mcpClient, scratch: connectorsScratch })
+  // OpenDocsStore owns multi-tab open docs for the connectors viewer (transient, no persistence).
+  const openDocs = new OpenDocsStore(mcpClient)
+  connectorsRegistry.register([createOpenInViewerTool({ open: openDocs })])
   // File-tree browse: human-driven, so it reads the bridge directly (no broker prompt), like Save.
   const connectorsTree = new ConnectorsTreeStore({ client: mcpClient })
   void connectorsTree.load() // resilient: errors land in tree state, app still boots
@@ -366,11 +367,23 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   connectorsEngine.setContextProvider(() => describeConnectorsContext(mcpStore))
   const connectorsDraft = new ComposerDraftStore()
   const connectorsFeature = createConnectorsFeature({
-    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, scratch: connectorsScratch, save: connectorsSave,
+    mcp: mcpStore, onRefresh: () => void loadConnectors(), engine: connectorsEngine, broker, accent: agentAccent, draft: connectorsDraft, open: openDocs,
     tree: connectorsTree,
-    onOpenFile: (path: string) => void openFileIntoViewer(mcpClient, connectorsScratch, path),
+    onOpenFile: (path: string) => void openDocs.open(path),
     onTreeRefresh: () => void connectorsTree.load(),
   })
+
+  // Composable Views: a registry of panel types (reusing the connectors feature's own module
+  // instances + the shared memory module) feeds the ViewsStore (seeded with the built-in views).
+  const connectorsModules = new Map(connectorsFeature.modules.map((m) => [m.id, m]))
+  const panelRegistry = buildRegistry([
+    { id: 'connectors-tree', label: 'File tree', icon: '📁', module: connectorsModules.get('connectors-tree')! },
+    { id: 'connectors-viewer', label: 'Document viewer', icon: '📄', module: connectorsModules.get('connectors-viewer')! },
+    { id: 'ai-chat', label: 'AI chat', icon: '💬', module: connectorsModules.get('ai-chat')! },
+    { id: memoryModule.id, label: 'Memory', icon: '🧠', module: memoryModule },
+  ] as PanelType[])
+  const viewsStore = new ViewsStore(DEFAULT_VIEWS, panelRegistry)
+  await persistState(viewsStore, storage.scope('views'), 'all')
 
   // Orchestrator: a cross-cutting chatting agent that delegates to per-feature subagents.
   const orchestratorRegistry = new Registry()
@@ -481,5 +494,5 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore }
+  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore, registry: panelRegistry, viewsStore }
 }

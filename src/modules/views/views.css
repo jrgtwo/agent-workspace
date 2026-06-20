@@ -1,0 +1,11 @@
+.views-area { display: flex; flex-direction: column; height: 100%; }
+.views-area__bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.views-area__title { font-weight: 600; }
+.views-area__reset { margin-left: auto; background: transparent; border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); cursor: pointer; padding: 2px 8px; }
+.views-area__panels { flex: 1; min-height: 0; position: relative; }
+.views-addmenu { position: relative; }
+.views-addmenu__btn { background: transparent; border: 1px solid var(--border); border-radius: 5px; color: var(--accent); cursor: pointer; padding: 2px 8px; }
+.views-addmenu__list { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 10; min-width: 160px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 0; }
+.views-addmenu__list button { text-align: left; background: transparent; border: none; color: var(--text); cursor: pointer; padding: 4px 12px; }
+.views-addmenu__list button:hover { background: var(--surface-2); }
+.views-addmenu__empty { padding: 4px 12px; color: var(--text-muted); }

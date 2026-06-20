@@ -1,14 +1,7 @@
 import type { ToolDef } from '../../core/types'
-import type { McpClient } from '../../core/mcp/mcpClient'
-import type { DocEditorStore } from '../docEditor/docEditorStore'
-import { openFileIntoViewer } from './connectorsFs'
+import type { OpenDocsStore } from './openDocsStore'
 
-/**
- * Lets the connector agent open a disk file into the Connectors scratch viewer: it reads the file
- * through the MCP bridge and hydrates the scratch store. `sourcePath` is retained so write-back to
- * disk can be added later. Read-only relative to the workspace — it does not touch the library.
- */
-export function createOpenInViewerTool(opts: { client: McpClient; scratch: DocEditorStore }): ToolDef {
+export function createOpenInViewerTool(opts: { open: OpenDocsStore }): ToolDef {
   return {
     name: 'open_in_viewer',
     description:
@@ -26,6 +19,12 @@ export function createOpenInViewerTool(opts: { client: McpClient; scratch: DocEd
       locality: 'LOCAL',
       describe: (args: unknown) => `Open "${(args as { path?: string })?.path ?? 'file'}" in the viewer?`,
     },
-    handler: (a: { path: string }) => openFileIntoViewer(opts.client, opts.scratch, a.path),
+    handler: async (a: { path: string }) => {
+      await opts.open.open(a.path)
+      const d = opts.open.activeDoc()
+      return d && d.path === a.path
+        ? { ok: true, name: d.name, text: d.doc.getState().text }
+        : { ok: false, error: 'could not open file' }
+    },
   }
 }

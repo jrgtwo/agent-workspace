@@ -189,6 +189,7 @@ export interface AppServices {
   mcp: McpStore
   registry: PanelRegistry
   viewsStore: ViewsStore
+  featureAgents: FeatureAgentRegistry
 }
 
 export interface CreateServicesOpts {
@@ -376,11 +377,16 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   // Composable Views: a registry of panel types (reusing the connectors feature's own module
   // instances + the shared memory module) feeds the ViewsStore (seeded with the built-in views).
   const connectorsModules = new Map(connectorsFeature.modules.map((m) => [m.id, m]))
+  const boardModules = new Map(board.modules.map((m) => [m.id, m]))
+  const tripModules = new Map(tripFeature.modules.map((m) => [m.id, m]))
   const panelRegistry = buildRegistry([
     { id: 'connectors-tree', label: 'File tree', icon: '📁', module: connectorsModules.get('connectors-tree')! },
     { id: 'connectors-viewer', label: 'Document viewer', icon: '📄', module: connectorsModules.get('connectors-viewer')! },
     { id: 'ai-chat', label: 'AI chat', icon: '💬', module: connectorsModules.get('ai-chat')! },
     { id: memoryModule.id, label: 'Memory', icon: '🧠', module: memoryModule },
+    { id: 'kanban-board', label: 'Kanban board', icon: '📋', module: boardModules.get('kanban-board')! },
+    { id: 'trip-map', label: 'Map', icon: '🗺️', module: tripModules.get('trip-map')! },
+    { id: 'trip-day-strip', label: 'Itinerary', icon: '📅', module: tripModules.get('trip-day-strip')! },
   ] as PanelType[])
   const viewsStore = new ViewsStore(DEFAULT_VIEWS, panelRegistry)
   await persistState(viewsStore, storage.scope('views'), 'all')
@@ -394,6 +400,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     ['kanban', { id: 'kanban', title: 'Kanban', description: 'Manage kanban boards: create boards, open them, create and move cards.', registry: boardRegistry, prompt: BOARD_PROMPT, contextProvider: () => describeKanbanContext(kanban, kanbanNav, proposals) }],
     ['search', { id: 'search', title: 'Search', description: 'Search the WEB for up-to-date information (news, travel ideas, current facts) the local model and documents lack. Returns cited results; the user approves each query before it is sent.', registry: searchToolRegistry, prompt: SEARCH_PROMPT, informational: true }],
     ['trip', { id: 'trip', title: 'Trip', description: 'Research destinations and BUILD a complete day-by-day travel itinerary on a map (create_itinerary creates the whole trip), or add stops to an existing trip. Delegate here to PLAN or BUILD any trip or itinerary.', registry: tripRegistry, prompt: TRIP_PROMPT, contextProvider: () => describeTripContext(trip) }],
+    ['connectors', { id: 'connectors', title: 'Connectors', description: "Browse, read, and write the user's files through the local MCP filesystem connector. Delegate here to open, read, search, or edit files on disk.", registry: connectorsRegistry, prompt: CONNECTORS_PROMPT, contextProvider: () => describeConnectorsContext(mcpStore) }],
+    ['graph', { id: 'graph', title: 'Graph', description: 'Create, link, and update typed entities in the knowledge graph. Delegate here to add or relate notes, people, tasks, or other records in the graph.', registry: graphRegistry, prompt: GRAPH_PROMPT, contextProvider: () => describeGraphContext(graph) }],
   ])
 
   const sessionStore = new OrchestratorSessionStore(storage.scope('orchestrator-sessions'), uid)
@@ -413,6 +421,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     notes: notes.modules.find((m) => m.id === 'doc-editor')!.render,
     kanban: board.modules.find((m) => m.id === 'kanban-board')!.render,
     trip: tripFeature.modules.find((m) => m.id === 'trip-day-strip')!.render,
+    connectors: connectorsFeature.modules.find((m) => m.id === 'connectors-viewer')!.render,
+    graph: graphFeature.modules.find((m) => m.id === 'graph-lens')!.render,
   }
 
   const orchestrator = createOrchestratorFeature({
@@ -494,5 +504,5 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore, registry: panelRegistry, viewsStore }
+  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore, registry: panelRegistry, viewsStore, featureAgents }
 }

@@ -13,4 +13,15 @@ describe('composable views wiring', () => {
     expect(s.registry.has('connectors-viewer')).toBe(true)
     expect(s.registry.has('ai-chat')).toBe(true)
   })
+
+  it('registers kanban and trip panels in the registry', async () => {
+    const s = await createServices({ client: fakeClient, backend: new MemoryBackend(), mcpClient: fakeMcp })
+    expect(s.registry.has('kanban-board')).toBe(true)
+    expect(s.registry.has('trip-map')).toBe(true)
+    expect(s.registry.has('trip-day-strip')).toBe(true)
+    // each entry's module .id matches its registry key (PanelArea lookup contract)
+    expect(s.registry.get('kanban-board')!.module.id).toBe('kanban-board')
+    expect(s.registry.get('trip-map')!.module.id).toBe('trip-map')
+    expect(s.registry.get('trip-day-strip')!.module.id).toBe('trip-day-strip')
+  })
 })

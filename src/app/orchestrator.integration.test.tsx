@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { createServices } from './services'
 import { MemoryBackend } from '../core/storage/memoryBackend'
 import type { ChatResult } from '../core/llamaClient'
@@ -47,11 +47,4 @@ describe('orchestrator end-to-end (scripted)', () => {
     expect(titles).toContain('Ship it')
   })
 
-  it('exposes the orchestrator feature with delegation-only tools on the chat module', async () => {
-    const services = await createServices({ client: { chat: vi.fn() }, backend: new MemoryBackend() })
-    const f = services.features.find((f) => f.id === 'orchestrator')
-    expect(f).toBeDefined()
-    const chatModule = f!.modules.find((m) => m.id === 'ai-chat')!
-    expect(chatModule.tools).toEqual([]) // orchestrator tools live in the registry, not the chat module
-  })
 })

@@ -16,7 +16,6 @@ import { createNotesFeature } from '../features/notes'
 import { createStyleGuideFeature } from '../features/styleguide'
 import { createSettingsFeature } from '../features/settings'
 import { createBoardFeature } from '../features/board'
-import { createOrchestratorFeature } from '../features/orchestrator'
 import { ResearchRegistry } from '../core/research/researchRegistry'
 import { SearxngProvider } from '../core/research/searxngProvider'
 import { GeoRegistry } from '../core/geo/geoRegistry'
@@ -60,6 +59,8 @@ import { createStorage } from '../core/storage/storage'
 import { persistState } from '../core/storage/persistState'
 import type { StorageBackend } from '../core/storage/types'
 import type { FeatureManifest } from '../core/types'
+import { DockStore } from '../core/dockStore'
+import type { PreviewRenderers } from '../modules/orchestrator/previewModule'
 
 let seq = 0
 // Ephemeral, within-session ids (permission requests, proposals): a readable counter is fine.
@@ -190,6 +191,8 @@ export interface AppServices {
   registry: PanelRegistry
   viewsStore: ViewsStore
   featureAgents: FeatureAgentRegistry
+  dockStore: DockStore
+  previewRenderers: PreviewRenderers
 }
 
 export interface CreateServicesOpts {
@@ -382,7 +385,6 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   const panelRegistry = buildRegistry([
     { id: 'connectors-tree', label: 'File tree', icon: '📁', module: connectorsModules.get('connectors-tree')! },
     { id: 'connectors-viewer', label: 'Document viewer', icon: '📄', module: connectorsModules.get('connectors-viewer')! },
-    { id: 'ai-chat', label: 'AI chat', icon: '💬', module: connectorsModules.get('ai-chat')! },
     { id: memoryModule.id, label: 'Memory', icon: '🧠', module: memoryModule },
     { id: 'kanban-board', label: 'Kanban board', icon: '📋', module: boardModules.get('kanban-board')! },
     { id: 'trip-map', label: 'Map', icon: '🗺️', module: tripModules.get('trip-map')! },
@@ -425,10 +427,8 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     graph: graphFeature.modules.find((m) => m.id === 'graph-lens')!.render,
   }
 
-  const orchestrator = createOrchestratorFeature({
-    engine: orchestratorEngine, broker, accent: agentAccent, sessions: sessionStore, plan: planStore,
-    proposals, applier, preview, previewRenderers,
-  })
+  const dockStore = new DockStore()
+  await persistState(dockStore, storage.scope('dock'), 'state')
 
   await createFeatureChatController({
     engine: orchestratorEngine,
@@ -498,11 +498,11 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
   })
 
   const layoutStores = new Map<string, LayoutStore>()
-  for (const feature of [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature]) {
+  for (const feature of [notes, styleguide, settings, board, search, tripFeature, graphFeature, connectorsFeature]) {
     const ls = new LayoutStore(feature.layout)
     await persistState(ls, storage.scope('layout'), feature.id)
     layoutStores.set(feature.id, ls)
   }
 
-  return { features: [notes, styleguide, settings, board, search, orchestrator, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore, registry: panelRegistry, viewsStore, featureAgents }
+  return { features: [notes, styleguide, settings, board, search, tripFeature, graphFeature, connectorsFeature], layoutStores, broker, memory, notesEngine, boardEngine, orchestratorEngine, sessionStore, planStore, docStore, library, proposals, applier, theme, agentAccent, kanban, kanbanNav, preview, searchResults, research, geo, trip, graph, mcp: mcpStore, registry: panelRegistry, viewsStore, featureAgents, dockStore, previewRenderers }
 }

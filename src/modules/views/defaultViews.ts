@@ -4,9 +4,8 @@ export const DEFAULT_VIEWS: ViewDef[] = [
   {
     id: 'editor', name: 'Editor', icon: '🗂', builtIn: true,
     layout: { type: 'split', direction: 'horizontal', children: [
-      { type: 'panel', moduleId: 'connectors-tree', size: 20, draggable: true },
-      { type: 'panel', moduleId: 'connectors-viewer', size: 50, draggable: true },
-      { type: 'panel', moduleId: 'ai-chat', size: 30, draggable: true },
+      { type: 'panel', moduleId: 'connectors-tree', size: 30, draggable: true },
+      { type: 'panel', moduleId: 'connectors-viewer', size: 70, draggable: true },
     ] },
   },
   {

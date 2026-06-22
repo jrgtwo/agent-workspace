@@ -1,0 +1,42 @@
+/* src/shell/assistantDock.css */
+.dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  height: 100%;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+.dock--collapsed {
+  width: 44px;
+  align-items: center;
+  padding-top: 8px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+.dock__resize {
+  position: absolute;
+  left: -3px; top: 0; bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+.dock__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.dock__tabs { display: flex; gap: 4px; margin-left: auto; }
+.dock__tab--active { color: var(--accent); }
+.dock__body { flex: 1; min-height: 0; display: flex; }
+.dock__drawer { max-height: 45%; overflow: auto; border-top: 1px solid var(--border); }
+.dock-sessions { position: relative; display: flex; align-items: center; gap: 6px; }
+.dock-sessions__list {
+  position: absolute; top: 100%; left: 0; z-index: 10;
+  margin: 4px 0 0; padding: 4px; list-style: none;
+  min-width: 180px; background: var(--surface); border: 1px solid var(--border);
+}
+.dock-sessions__row { display: flex; align-items: center; gap: 4px; }
+.dock-sessions__item--active { color: var(--accent); }

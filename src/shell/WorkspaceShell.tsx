@@ -11,6 +11,7 @@ import { ViewArea } from '../modules/views/ViewArea'
 import { ChangeApprovalModal } from '../modules/proposals/ChangeApprovalModal'
 import { useStore } from '../core/emitter'
 import { applyTheme, type ThemeStore } from '../core/themeStore'
+import { AssistantDock, type AssistantDockProps } from './AssistantDock'
 
 type ShellProps = {
   features: FeatureManifest[]
@@ -20,19 +21,20 @@ type ShellProps = {
   applier?: ProposalApplier
   viewsStore?: ViewsStore
   registry?: PanelRegistry
+  dock?: AssistantDockProps
 }
 
-export function WorkspaceShell({ features, theme, layoutStores, proposals, applier, viewsStore, registry }: ShellProps) {
+export function WorkspaceShell({ features, theme, layoutStores, proposals, applier, viewsStore, registry, dock }: ShellProps) {
   const { theme: themeId } = useStore(theme)
   useEffect(() => { applyTheme(themeId) }, [themeId])
   if (viewsStore && registry) {
-    return <ComposableShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} viewsStore={viewsStore} registry={registry} />
+    return <ComposableShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} viewsStore={viewsStore} registry={registry} dock={dock} />
   }
-  return <LegacyShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} />
+  return <LegacyShell features={features} layoutStores={layoutStores} proposals={proposals} applier={applier} dock={dock} />
 }
 
-function LegacyShell({ features, layoutStores, proposals, applier }: {
-  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier
+function LegacyShell({ features, layoutStores, proposals, applier, dock }: {
+  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier; dock?: AssistantDockProps
 }) {
   const [activeId, setActiveId] = useState(features[0].id)
   const active = features.find((f) => f.id === activeId) ?? features[0]
@@ -42,13 +44,14 @@ function LegacyShell({ features, layoutStores, proposals, applier }: {
       <div style={{ flex: 1, minWidth: 0 }}>
         <PanelArea manifest={active} layoutStore={layoutStores.get(active.id)!} />
       </div>
+      {dock && <AssistantDock {...dock} />}
       {proposals && applier && <ChangeApprovalModal proposals={proposals} applier={applier} />}
     </div>
   )
 }
 
-function ComposableShell({ features, layoutStores, proposals, applier, viewsStore, registry }: {
-  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier; viewsStore: ViewsStore; registry: PanelRegistry
+function ComposableShell({ features, layoutStores, proposals, applier, viewsStore, registry, dock }: {
+  features: FeatureManifest[]; layoutStores: Map<string, LayoutStore>; proposals?: ProposalStore; applier?: ProposalApplier; viewsStore: ViewsStore; registry: PanelRegistry; dock?: AssistantDockProps
 }) {
   const { views } = useStore(viewsStore)
   const [activeId, setActiveId] = useState(features[0].id)
@@ -80,6 +83,7 @@ function ComposableShell({ features, layoutStores, proposals, applier, viewsStor
           ? <ViewArea view={activeView} viewsStore={viewsStore} registry={registry} layoutStore={layoutFor(activeView)} />
           : <PanelArea manifest={fallback} layoutStore={layoutStores.get(fallback.id)!} />}
       </div>
+      {dock && <AssistantDock {...dock} />}
       {proposals && applier && <ChangeApprovalModal proposals={proposals} applier={applier} />}
     </div>
   )

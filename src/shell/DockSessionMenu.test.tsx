@@ -46,4 +46,23 @@ describe('DockSessionMenu', () => {
     fireEvent.click(btn)
     expect(btn).toHaveAttribute('aria-expanded', 'true')
   })
+
+  it('double-clicking an item opens a rename input seeded with the title', () => {
+    render(<DockSessionMenu store={fakeStore()} />)
+    fireEvent.click(screen.getByLabelText('conversations'))
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'One' }))
+    expect(screen.getByLabelText('rename conversation')).toHaveValue('One')
+  })
+
+  it('renames on Enter and closes the input', () => {
+    const store = fakeStore()
+    render(<DockSessionMenu store={store} />)
+    fireEvent.click(screen.getByLabelText('conversations'))
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'One' }))
+    const input = screen.getByLabelText('rename conversation')
+    fireEvent.change(input, { target: { value: 'Renamed' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(store.rename).toHaveBeenCalledWith('a', 'Renamed')
+    expect(screen.queryByLabelText('rename conversation')).not.toBeInTheDocument()
+  })
 })

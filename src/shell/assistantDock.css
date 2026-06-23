@@ -40,3 +40,8 @@
 }
 .dock-sessions__row { display: flex; align-items: center; gap: 4px; }
 .dock-sessions__item--active { color: var(--accent); }
+.dock-sessions__rename {
+  flex: 1; min-width: 0; padding: 2px 4px;
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+  font: inherit;
+}

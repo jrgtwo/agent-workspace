@@ -2,6 +2,7 @@ export interface McpToolInfo {
   name: string
   description: string
   inputSchema: Record<string, unknown>
+  connector?: string
 }
 
 export interface McpCallResult {

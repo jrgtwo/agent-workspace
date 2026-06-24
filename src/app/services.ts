@@ -45,8 +45,10 @@ import { describeKanbanContext } from '../modules/kanban/context'
 import { DocumentLibraryStore } from '../modules/docEditor/documentLibraryStore'
 import { describeNotesContext } from '../modules/docEditor/context'
 import { McpClient } from '../core/mcp/mcpClient'
+import type { McpToolInfo } from '../core/mcp/mcpClient'
 import { McpStore } from '../core/mcp/mcpStore'
 import { toToolDefs } from '../core/mcp/mcpAdapter'
+import type { DataLocality } from '../core/types'
 import { createOpenInViewerTool } from '../modules/connectors/openInViewerTool'
 import { ConnectorsTreeStore } from '../modules/connectors/connectorsTreeStore'
 import { OpenDocsStore } from '../modules/connectors/openDocsStore'
@@ -162,6 +164,10 @@ const CONNECTORS_PROMPT =
   'click Save to write changes back to the file. You cannot save files yourself yet. Do not invent ' +
   'tool results — only report what a tool returned. When you learn a durable preference about the ' +
   'user, call remember.'
+
+// Per-connector data locality. Unlisted connectors default to NETWORK so a future remote server is
+// consent-gated by default (privacy-safe). Both current connectors are fully local.
+const CONNECTOR_LOCALITY: Record<string, DataLocality> = { filesystem: 'LOCAL', pandoc: 'LOCAL' }
 
 export interface AppServices {
   features: FeatureManifest[]
@@ -361,7 +367,16 @@ export async function createServices(opts?: CreateServicesOpts): Promise<AppServ
     mcpStore.setLoading()
     try {
       const tools = await mcpClient.listTools()
-      connectorsRegistry.register(toToolDefs(tools, { client: mcpClient, connectorId: 'filesystem', locality: 'LOCAL' }))
+      const byConnector = new Map<string, McpToolInfo[]>()
+      for (const t of tools) {
+        const id = t.connector ?? 'filesystem' // pre-multi-server bridges don't tag → assume filesystem
+        const list = byConnector.get(id) ?? []
+        list.push(t)
+        byConnector.set(id, list)
+      }
+      for (const [connectorId, group] of byConnector) {
+        connectorsRegistry.register(toToolDefs(group, { client: mcpClient, connectorId, locality: CONNECTOR_LOCALITY[connectorId] ?? 'NETWORK' }))
+      }
       mcpStore.setReady(tools.map((t) => ({ name: t.name, description: t.description })))
     } catch (err) {
       mcpStore.setError(err instanceof Error ? err.message : String(err))

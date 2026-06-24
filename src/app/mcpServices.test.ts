@@ -21,4 +21,21 @@ describe('MCP wiring in services', () => {
     expect(services.mcp.getState().status).toBe('error')
     expect(services.features.some((f) => f.id === 'connectors')).toBe(true)
   })
+
+  it('groups tools by connector and assigns per-connector locality', async () => {
+    const mcpClient = {
+      listTools: vi.fn().mockResolvedValue([
+        { name: 'read_file', description: 'Read', inputSchema: { type: 'object' }, connector: 'filesystem' },
+        { name: 'convert-contents', description: 'Convert', inputSchema: { type: 'object' }, connector: 'pandoc' },
+        { name: 'mystery', description: 'Unknown', inputSchema: { type: 'object' }, connector: 'somenewthing' },
+      ]),
+      call: vi.fn(),
+    }
+    const services = await createServices({ client: fakeClient, backend: new MemoryBackend(), mcpClient })
+    const tools = services.featureAgents.get('connectors')!.registry.all()
+    const loc = (n: string) => tools.find((t) => t.name === n)?.permission?.locality
+    expect(loc('read_file')).toBe('LOCAL')
+    expect(loc('convert-contents')).toBe('LOCAL')
+    expect(loc('mystery')).toBe('NETWORK') // unconfigured connector → consent-gated by default
+  })
 })

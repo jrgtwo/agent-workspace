@@ -27,4 +27,11 @@ describe('McpClient', () => {
     expect(fetchImpl).toHaveBeenCalledWith('/mcp/call', expect.objectContaining({ method: 'POST' }))
     expect(r).toEqual({ ok: true, text: 'file contents', error: undefined })
   })
+
+  it('preserves the connector tag from /tools', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ tools: [{ name: 'convert-contents', description: 'Convert', inputSchema: {}, connector: 'pandoc' }] }))
+    const c = new McpClient('/mcp', fetchImpl as unknown as typeof fetch)
+    const tools = await c.listTools()
+    expect(tools[0].connector).toBe('pandoc')
+  })
 })
